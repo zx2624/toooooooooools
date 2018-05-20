@@ -1,0 +1,10 @@
+devel/
+build/
+*.tar
+*.gz
+.catkin_workspace
+*.swp
+*.swn
+*.swo
+*.swm
+
