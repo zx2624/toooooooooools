@@ -14,14 +14,16 @@ pitch_s = map(float, [l[5] for l in ls])
 yaw_s = map(float, [l[6] for l in ls])
 
 
-u = np.sin(roll_s) * np.cos(pitch_s) * np.cos(yaw_s)
-v = -np.cos(roll_s) * np.sin(pitch_s) * np.cos(yaw_s)
-w = np.cos(roll_s) * np.cos(pitch_s) * np.sin(yaw_s)
+u = np.cos(yaw_s) * np.cos(pitch_s) 
+v = np.sin(yaw_s) * np.cos(pitch_s) 
+w = -np.sin(pitch_s)
+
 
 fig = plt.figure()
 ax = fig.gca(projection='3d')
 
 # plt.quiver(x_s, y_s, cos_s, sin_s, units='width', color='r', label="loam")
+# ax.quiver(x_s, y_s, z_s, u, v, w, length = 0.1)
 ax.quiver(x_s, y_s, z_s, u, v, w, length = 0.1)
 
 plt.show()
