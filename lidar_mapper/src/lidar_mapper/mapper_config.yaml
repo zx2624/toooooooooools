@@ -1,0 +1,11 @@
+bag_dir: "/home/yangdegang/Desktop/DATA/posegraph/"
+ground_topic: "/lidar_parsing/hist_ground"
+altitude_topic: "/lidar_parsing/hist_column"
+pose_topic: "/posegraph/odom"
+chassis_topic: "/vehicle/status"
+  
+xy_res: 0.1
+z_res: 0.1
+size: 1000
+x_base: 328000
+y_base: 3462000

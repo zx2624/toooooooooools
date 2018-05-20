@@ -7,4 +7,7 @@ build/
 *.swn
 *.swo
 *.swm
+*.pcd
+*.jpg
+*.png
 
