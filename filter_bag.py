@@ -46,6 +46,7 @@ def main():
             with Bag(ifile, 'r') as ib:
                 for topic, msg, t in ib:
                     if t.to_sec() < args.start_stamp :
+                        print("Msg time: " + str(t.to_sec()))
                         continue
                     elif t.to_sec() > args.end_stamp :
                         break
@@ -54,6 +55,7 @@ def main():
                             matchedtopics.append(topic)
                             if (args.verbose):
                                 print("Including matched topic '%s'" % topic)
+                        print("Write msg " + str(t.to_sec()))
                         o.write(topic, msg, t)
                         included_count += 1
                     else:

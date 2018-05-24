@@ -24,8 +24,8 @@ namespace tools {
 			//exit(-1);
 		//}
 
+		std::ofstream ofs_raw("raw_odom.txt");
 		std::ofstream ofs(gnss_odom_path_.c_str());
-		std::ofstream ofs_raw("raw_gnss.txt");
 
 		if(!ofs.is_open()) {
 			std::cerr << gnss_odom_path_ << "not exist!\n";
@@ -48,9 +48,6 @@ namespace tools {
 		rosbag::View gnss_odom_view(bag_, rosbag::TopicQuery(gnss_topic_name_));
 
 
-		//Eigen::Matrix3d gnss_to_lidar = Eigen::AngleAxisd(0, Eigen::Vector3d::UnitX())
-					 //* Eigen::AngleAxisd(0, Eigen::Vector3d::UnitY())
-					 //* Eigen::AngleAxisd(90 * M_PI / 180, Eigen::Vector3d::UnitZ()).matrix();
 		tf::Matrix3x3 gnss_to_lidar;
 		gnss_to_lidar.setEulerYPR(90 * M_PI / 180, 0, 0);
 
@@ -62,9 +59,6 @@ namespace tools {
 			for(int row = 0; row < 6; row++)
 			    covariance[row] = od->pose.covariance[6 * row + row];
 
-			if(covariance[0] > 3 || covariance[1] > 3 || covariance[2] > 10) {
-				continue;
-			}
 
 			Eigen::Quaterniond quat(od->pose.pose.orientation.w,
 					od->pose.pose.orientation.x, 
@@ -88,11 +82,10 @@ namespace tools {
 					<< " " << covariance[0] << " " << covariance[1] << " " << covariance[2]
 					<< " " << covariance[3] << " " << covariance[4] << " " << covariance[5]
 					<< std::endl;
-#ifdef DEBUG
-			//std::cout << "[tf_rpy, eigen_rpy]: " << rpy_raw(0) << " " << rpy_raw(1) << " " << rpy_raw(2) 
-									//<< " " << rpy_debug(2) << " " << rpy_debug(1) << " " << rpy_debug(0) << std::endl;
-#endif
 
+			if(covariance[0] > 3 || covariance[1] > 3 || covariance[2] > 10) {
+				continue;
+			}
 			
 			if(is_first_frame) {
 				last_x= od->pose.pose.position.x; 
@@ -129,30 +122,14 @@ namespace tools {
 
 					cnt++;
 					auto yaw = atan2(delta_y, delta_x);
-					//auto yaw = -atan(delta_y / delta_x);
-					//if (delta_y > 0) {
-						 //yaw = -yaw - M_PI / 2;
-					//} else {
-							 //yaw = -yaw + M_PI * 3 / 2;
-						 //}
-					
-					//if (yaw > 2 * M_PI || yaw < 0) {
-						//yaw = 2 * M_PI;
-					//}
 
-					//std::cout << "[x, y, delta_x, delta_y, yaw]" << x - init_x << " " << y - init_y
-						//<< " " << delta_y << " " << delta_x << " " << yaw << std::endl;
 					//auto pitch = asin(delta_z / sqrt(pow(delta_x, 2) + pow(delta_y, 2) + pow(delta_z, 2)));
 					auto pitch = 0;
 
-					//Eigen::Matrix3d r0 = Eigen::AngleAxisd(0, Eigen::Vector3d::UnitX())
-								 //* Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY())
-								 //* Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).matrix();
 					tf::Matrix3x3 r0;
 					r0.setEulerYPR(yaw, pitch, 0);
 
 					auto r1 = gnss_to_lidar.transpose() * r0;
-					//rpy_raw = r1.eulerAngles(0, 1, 2);
 					tf::Matrix3x3(r1).getRPY(rpy_raw(0), rpy_raw(1), rpy_raw(2));
 				}
 
@@ -184,7 +161,7 @@ int main(int argc, char** argv) {
 		exit(-1);
 	}
 	std::cout << "bag_file_path: " << argv[1] << std::endl
-						<< "gnss_odom_path: "<< argv[2] << std::endl;
+						<< "odom_path: "<< argv[2] << std::endl;
 	//tools::ReadGNSS read_gnss(argv[1], argv[2]);
 	//tools::ReadGNSS read_gnss(argv[1], argv[2], "/sensor/velodyne/odom");
 	tools::ReadGNSS read_gnss(argv[1], argv[2], "/sensor/sick/odom");

@@ -38,6 +38,7 @@ def main():
                 print("> Reading bag file: " + ifile)
             with Bag(ifile, 'r') as ib:
                 for topic, msg, t in ib:
+                    print("msg time: " + str(t.to_sec()))
                     if any(fnmatchcase(topic, pattern) for pattern in topics):
                         if not topic in matchedtopics:
                             matchedtopics.append(topic)
