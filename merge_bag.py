@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python2.7
 
 import sys
 import argparse
@@ -17,16 +17,23 @@ def main():
                         help='verbose output')
     parser.add_argument('-t', '--topics', default="*",
                         help='string interpreted as a list of topics (wildcards \'*\' and \'?\' allowed) to include in the merged bag file')
+    parser.add_argument('start_stamp', default=0.0, type=float, 
+            help='start stamp')
+    parser.add_argument('end_stamp', default=0.0,type=float, 
+            help='end stamp')
 
     args = parser.parse_args()
 
     topics = args.topics.split(' ')
+    print("Start stamp: {}".format(args.start_stamp))
+    print("End stamp: {}".format(args.end_stamp))
 
     total_included_count = 0
     total_skipped_count = 0
 
     if (args.verbose):
         print("Writing bag file: " + args.outputbag)
+        print("Reading bag file: {} ".format(args.inputbag))
         print("Matching topics against patters: '%s'" % ' '.join(topics))
 
     with Bag(args.outputbag, 'w') as o: 
@@ -38,7 +45,11 @@ def main():
                 print("> Reading bag file: " + ifile)
             with Bag(ifile, 'r') as ib:
                 for topic, msg, t in ib:
-                    print("msg time: " + str(t.to_sec()))
+                    if t.to_sec() < args.start_stamp :
+                        continue
+                    elif t.to_sec() > args.end_stamp :
+                        break
+                    print("bag: {}  msg time: {}".format(ifile, t.to_sec()))
                     if any(fnmatchcase(topic, pattern) for pattern in topics):
                         if not topic in matchedtopics:
                             matchedtopics.append(topic)

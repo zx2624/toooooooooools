@@ -18,8 +18,10 @@ yaw_bad = []
 with open(sys.argv[1]) as f:
 	for l in f:
 		line = l.split()
-		cov = float(line[12])
-		if(cov > 5) :
+		cov_x = float(line[7])
+		cov_y = float(line[8])
+		cov_yaw = float(line[12])
+		if(cov_x > 1 or cov_y > 1 or cov_yaw > 1) :
 			x_bad.append(float(line[1]))
 			y_bad.append(float(line[2]))
 			yaw_bad.append(float(line[6]))
