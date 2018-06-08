@@ -46,12 +46,12 @@ yaw_s_2 = map(float, [l[6] for l in ls])
 cos_s = np.cos(yaw_s)
 sin_s = np.sin(yaw_s)
 
-plt.quiver(x_s, y_s, cos_s, sin_s, units='width', color='r', label="odom")
+plt.quiver(x_s, y_s, cos_s, sin_s, units='width', color='r', label="1")
 
 cos_s_2 = np.cos(yaw_s_2)
 sin_s_2 = np.sin(yaw_s_2)
 
-plt.quiver(x_s_2, y_s_2, cos_s_2, sin_s_2, units='width',color="g", label="gnss")
+plt.quiver(x_s_2, y_s_2, cos_s_2, sin_s_2, units='width',color="g", label="2")
 
 # plt.scatter(xs, ys, color = 'red', label="gnss")
 

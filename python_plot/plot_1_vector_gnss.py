@@ -21,7 +21,8 @@ with open(sys.argv[1]) as f:
 		cov_x = float(line[7])
 		cov_y = float(line[8])
 		cov_yaw = float(line[12])
-		if(cov_x > 3 or cov_y > 3 or cov_yaw > 3) :
+		# if(cov_x > 50 or cov_y > 50 or cov_yaw > 100) :
+		if(False) :
 			x_bad.append(float(line[1]))
 			y_bad.append(float(line[2]))
 			yaw_bad.append(float(line[6]))
