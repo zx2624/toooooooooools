@@ -46,7 +46,7 @@ def main():
             with Bag(ifile, 'r') as ib:
                 for topic, msg, t in ib:
                     if t.to_sec() < args.start_stamp :
-                        print("Msg time: " + str(t.to_sec()))
+#print("Msg time: " + str(t.to_sec()))
                         continue
                     elif t.to_sec() > args.end_stamp :
                         break
