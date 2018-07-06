@@ -3,8 +3,7 @@ project(merge_pointcloud)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall -DPandar ${CMAKE_CXX_FLAGS}")
-#SET(CMAKE_CXX_FLAGS "-std=c++11 -O -g -Wall -DPandar -DDEBUG  ${CMAKE_CXX_FLAGS}")
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -Wall ${CMAKE_CXX_FLAGS}")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -18,8 +17,6 @@ find_package(catkin REQUIRED COMPONENTS
 ## System dependencies are found with CMake's conventions
 find_package(PCL)
 MESSAGE("pcl_path: " ${PCL_INCLUDE_DIRS})
-
-find_package(CUDA)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -107,7 +104,7 @@ find_package(CUDA)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  INCLUDE_DIRS include
+#INCLUDE_DIRS include
 	#LIBRARIES read_gnss
   CATKIN_DEPENDS 
 	rosbag 
@@ -123,7 +120,6 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
- include
  ${catkin_INCLUDE_DIRS}
  ${PCL_INCLUDE_DIRS}
 )

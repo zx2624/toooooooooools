@@ -3,8 +3,8 @@ project(compare_icp_and_ndt)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
-#SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall -DCUDA_NDT ${CMAKE_CXX_FLAGS}")
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall -DCUDA_NDT -Dpandar ${CMAKE_CXX_FLAGS}")
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall -DCUDA_NDT ${CMAKE_CXX_FLAGS}")
+#SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall -DCUDA_NDT -Dpandar ${CMAKE_CXX_FLAGS}")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)

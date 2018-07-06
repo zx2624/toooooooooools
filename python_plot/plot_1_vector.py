@@ -20,11 +20,15 @@ with open(sys.argv[1]) as f:
 		line = l.split()
 		cov_x = float(line[7])
 		cov_y = float(line[8])
+		cov_z = float(line[9])
+		cov_roll = float(line[10])
+		cov_pitch = float(line[11])
 		cov_yaw = float(line[12])
-		if(cov_x > 3 or cov_y > 3 or cov_yaw > 3) :
-			x_bad.append(float(line[1]))
-			y_bad.append(float(line[2]))
-			yaw_bad.append(float(line[6]))
+#if(cov_x > 3 or cov_y > 3 or cov_z > 3 or cov_yaw > 3 or cov_roll > 3 or cov_pitch > 3) :
+		if(cov_x > 20 or cov_y > 20 or cov_z > 10000000) :
+		  x_bad.append(float(line[1]))
+		  y_bad.append(float(line[2]))
+		  yaw_bad.append(float(line[6]))
 		else :
 			x_good.append(float(line[1]))
 			y_good.append(float(line[2]))

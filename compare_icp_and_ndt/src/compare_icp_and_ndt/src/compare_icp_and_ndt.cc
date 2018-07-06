@@ -13,6 +13,7 @@
 
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
+#include <tf/transform_datatypes.h>
 
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/registration/ndt.h>
@@ -27,8 +28,9 @@ namespace tools {
 		source_selected->clear();
 		for(unsigned int i = 0; i < source->points.size(); i++) {
 			pcl::PointXYZI p = source->points[i];
-			 if (p.z > 100 || p.z < 0 || 
-						(fabs(p.x) < 3 && fabs(p.y) < 2 && fabs(p.z) < 2)) {//remove the lidar
+			 if ((fabs(p.x) < 3 && 
+						 fabs(p.y) < 2 &&
+						  fabs(p.z) < 2)) {//remove the lidar
 				        continue;
 			 }
 			 source_selected->push_back(p);
@@ -96,6 +98,7 @@ namespace tools {
 		//statistic time 
 		std::vector<double> time_count;
 
+#ifdef VIEWER
 		pcl::visualization::PCLVisualizer viewer("viewer");
 		viewer.addCoordinateSystem(3.0 ,"coor");
 		viewer.setBackgroundColor(0.0, 0.0, 0.0, 0.0);
@@ -103,10 +106,12 @@ namespace tools {
 		viewer.setCameraPosition(0.0, 0.0, 100.0, 0.0, 0.0, 0.0);
 
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr show_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+#endif
 
 		for(rosbag::View::iterator its = points_view.begin(); 
 				its != points_view.end();its++) {
-			if(count++ == 1000) break;
+			count++;
+			//if(count++ == 1000) break;
 			//if(count++%5 != 0) continue;
 			//get a data instantiate
 			ros_pcd = its->instantiate<sensor_msgs::PointCloud2>();
@@ -150,7 +155,7 @@ namespace tools {
 				final_num_iteration = ndt.getFinalNumIteration();
 			
 				transform_start_to_now = transform_start_to_now * transform_source_to_target;
-
+#ifdef VIEWER
 				show_cloud->clear();
 				for(size_t i = 0; i < target->points.size(); i++) {
 					pcl::PointXYZI p = target->points[i];
@@ -179,10 +184,10 @@ namespace tools {
 		      p1.b = 0;
 		      show_cloud->push_back(p1);
 				}
-
 				viewer.removePointCloud("cloud");
         viewer.addPointCloud(show_cloud, "cloud");
 				viewer.spinOnce(10);
+#endif
 
 				//set the source to target for next loop
 				*target = *source_selected;
@@ -193,25 +198,36 @@ namespace tools {
 									<< final_num_iteration << " | \n";
 			//}
 
+			Eigen::Quaternionf quat(transform_start_to_now.block<3, 3>(0, 0));
+			Eigen::Vector3d rpy(0, 0, 0);
+			tf::Matrix3x3(tf::Quaternion(
+						quat.x(),
+						quat.y(),
+						quat.z(),
+						quat.w()
+						)).getRPY(rpy(0), rpy(1), rpy(2));
 			ofs << std::fixed << std::setprecision(6)
-					<< ros_pcd->header.stamp.toSec() << " ";
-			for(int i = 0; i < 4; i++)
-				for(int j = 0; j < 4; j++)
-					ofs << std::fixed << std::setprecision(6) 
-							<< transform_start_to_now(i, j) << " ";
-			ofs << std::endl;
-
-			std::cout << "frame: " << count << std::endl;
-			std::cout << "time: " << (end - start) * 1000/CLOCKS_PER_SEC << std::endl;
+					<< ros_pcd->header.stamp.toSec() << " "
+				  << std::fixed << std::setprecision(3)
+					<< transform_start_to_now(0, 3) << " "
+					<< transform_start_to_now(1, 3) << " "
+					<< transform_start_to_now(2, 3) << " "
+					<< rpy(0) << " " << rpy(1) << " " << rpy(2)
+					<< std::endl;
 
 			std::cout << std::fixed << std::setprecision(6)
-					<< ros_pcd->header.stamp.toSec() << " ";
-			for(int i = 0; i < 4; i++)
-				for(int j = 0; j < 4; j++)
-					std::cout << std::fixed << std::setprecision(6) 
-										//<< transform_start_to_now(i, j) << " ";
-										<< transform_source_to_target(i, j) << " ";
-			std::cout << std::endl;
+					<< ros_pcd->header.stamp.toSec() << " "
+				  << std::fixed << std::setprecision(3)
+					<< transform_start_to_now(0, 3) << " "
+					<< transform_start_to_now(1, 3) << " "
+					<< transform_start_to_now(2, 3) << " "
+					<< rpy(0) << " " << rpy(1) << " " << rpy(2)
+					<< std::endl;
+
+			std::cout << "frame: " << count << std::endl;
+			std::cout << "time: " << (end - start) * 1000/CLOCKS_PER_SEC << 
+				"ms" << std::endl;
+
 			//set 100 times to loop
 			//if(count == 100 * 5 +1) break;
 		}
@@ -220,13 +236,14 @@ namespace tools {
 			sum_time += time_count[i];
 		}
 		std::sort(time_count.begin(), time_count.end());
-		std::cout << "average_time: " << sum_time / time_count.size() << std::endl;
-		std::cout << "middle_time: " << time_count[time_count.size()/2] << std::endl;
+		std::cout << "average_time: " << sum_time / time_count.size() << "ms" << std::endl;
+		std::cout << "middle_time: " << time_count[time_count.size()/2] << "ms" << std::endl;
 
 		bag_.close();
 		ofs.close();
 		std::cout << "save Finished!\n";
 	}
+
 	void CompareICPandNDT::SaveOdomToFileUsingICP() {
 		std::cout << "Using ICP!" << std::endl;
 
@@ -280,7 +297,7 @@ namespace tools {
 		clock_t start = clock(), end = clock();
 		//statistic time 
 		std::vector<double> time_count;
-
+#ifdef VIEWER
 		pcl::visualization::PCLVisualizer viewer("viewer");
 		viewer.addCoordinateSystem(3.0 ,"coor");
 		viewer.setBackgroundColor(0.0, 0.0, 0.0, 0.0);
@@ -288,11 +305,13 @@ namespace tools {
 		viewer.setCameraPosition(0.0, 0.0, 100.0, 0.0, 0.0, 0.0);
 
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr show_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+#endif
 
 		for(rosbag::View::iterator its = points_view.begin(); 
 				its != points_view.end();its++) {
+			count++;
 			//if(count++%5 != 0) continue;
-			if(count++ == 1000) break;
+			//if(count++ == 1000) break;
 			//get a data instantiate
 			ros_pcd = its->instantiate<sensor_msgs::PointCloud2>();
 			pcl::fromROSMsg(*ros_pcd, *source);
@@ -336,6 +355,7 @@ namespace tools {
 			
 				transform_start_to_now = transform_start_to_now * transform_source_to_target;
 
+#ifdef VIEWER
 				show_cloud->clear();
 				for(size_t i = 0; i < target->points.size(); i++) {
 					pcl::PointXYZI p = target->points[i];
@@ -364,10 +384,10 @@ namespace tools {
 		      p1.b = 0;
 		      show_cloud->push_back(p1);
 				}
-
 				viewer.removePointCloud("cloud");
         viewer.addPointCloud(show_cloud, "cloud");
 				viewer.spinOnce(10);
+#endif
 
 				//set the source to target for next loop
 				*target = *source_selected;
@@ -378,25 +398,43 @@ namespace tools {
 									<< final_num_iteration << " | \n";
 			//}
 
+			//ofs << std::fixed << std::setprecision(6)
+					//<< ros_pcd->header.stamp.toSec() << " ";
+			//for(int i = 0; i < 4; i++)
+				//for(int j = 0; j < 4; j++)
+					//ofs << std::fixed << std::setprecision(6) 
+							//<< transform_start_to_now(i, j) << " ";
+			//ofs << std::endl;
+			Eigen::Quaternionf quat(transform_start_to_now.block<3, 3>(0, 0));
+			Eigen::Vector3d rpy(0, 0, 0);
+			tf::Matrix3x3(tf::Quaternion(
+						quat.x(),
+						quat.y(),
+						quat.z(),
+						quat.w()
+						)).getRPY(rpy(0), rpy(1), rpy(2));
 			ofs << std::fixed << std::setprecision(6)
-					<< ros_pcd->header.stamp.toSec() << " ";
-			for(int i = 0; i < 4; i++)
-				for(int j = 0; j < 4; j++)
-					ofs << std::fixed << std::setprecision(6) 
-							<< transform_start_to_now(i, j) << " ";
-			ofs << std::endl;
-
-			std::cout << "frame: " << count << std::endl;
-			std::cout << "time: " << (end - start) * 1000/CLOCKS_PER_SEC << std::endl;
+					<< ros_pcd->header.stamp.toSec() << " "
+				  << std::fixed << std::setprecision(3)
+					<< transform_start_to_now(0, 3) << " "
+					<< transform_start_to_now(1, 3) << " "
+					<< transform_start_to_now(2, 3) << " "
+					<< rpy(0) << " " << rpy(1) << " " << rpy(2)
+					<< std::endl;
 
 			std::cout << std::fixed << std::setprecision(6)
-					<< ros_pcd->header.stamp.toSec() << " ";
-			for(int i = 0; i < 4; i++)
-				for(int j = 0; j < 4; j++)
-					std::cout << std::fixed << std::setprecision(6) 
-										//<< transform_start_to_now(i, j) << " ";
-										<< transform_source_to_target(i, j) << " ";
-			std::cout << std::endl;
+					<< ros_pcd->header.stamp.toSec() << " "
+				  << std::fixed << std::setprecision(3)
+					<< transform_start_to_now(0, 3) << " "
+					<< transform_start_to_now(1, 3) << " "
+					<< transform_start_to_now(2, 3) << " "
+					<< rpy(0) << " " << rpy(1) << " " << rpy(2)
+					<< std::endl;
+
+			std::cout << "frame: " << count << std::endl;
+			std::cout << "time: " << (end - start) * 1000/CLOCKS_PER_SEC 
+				<< "ms" << std::endl;
+
 			//set 100 times to loop
 			//if(count == 100 * 5 + 1 ) break;
 		}
@@ -405,13 +443,16 @@ namespace tools {
 			sum_time += time_count[i];
 		}
 		std::sort(time_count.begin(), time_count.end());
-		std::cout << "average_time: " << sum_time / time_count.size() << std::endl;
-		std::cout << "middle_time: " << time_count[time_count.size()/2] << std::endl;
+		std::cout << "average_time: " << sum_time / time_count.size() << "ms" 
+			<< std::endl;
+		std::cout << "middle_time: " << time_count[time_count.size()/2] << "ms"
+			<< std::endl;
 
 		bag_.close();
 		ofs.close();
 		std::cout << "save Finished!\n";
 	}
+
 	void CompareICPandNDT::SaveLoamOdomToFile() {
 		std::cout << "Save loam odom to file!" << std::endl;
 
@@ -437,16 +478,21 @@ namespace tools {
 			//get a data instantiate
 			nav_msgs::OdometryConstPtr od = its->instantiate<nav_msgs::Odometry>(); 
 
+			Eigen::Vector3d rpy(0, 0, 0);
+			tf::Matrix3x3(tf::Quaternion(
+						od->pose.pose.orientation.x, 
+						od->pose.pose.orientation.y, 
+						od->pose.pose.orientation.z, 
+						od->pose.pose.orientation.w
+						)).getRPY(rpy(0), rpy(1), rpy(2));
 
 			ofs << std::fixed << std::setprecision(6)
 					<< od->header.stamp.toSec() << " "
+					<< std::fixed << std::setprecision(3)
 					<< od->pose.pose.position.x << " "
 					<< od->pose.pose.position.y << " "
 					<< od->pose.pose.position.z << " "
-					<< od->pose.pose.orientation.x << " "
-					<< od->pose.pose.orientation.y << " "
-					<< od->pose.pose.orientation.z << " "
-					<< od->pose.pose.orientation.w
+					<< rpy(0) << " " << rpy(1) << " " << rpy(2)
 					<< std::endl;
 
 			std::cout << std::fixed << std::setprecision(6)
@@ -454,10 +500,7 @@ namespace tools {
 					<< od->pose.pose.position.x << " "
 					<< od->pose.pose.position.y << " "
 					<< od->pose.pose.position.z << " "
-					<< od->pose.pose.orientation.x << " "
-					<< od->pose.pose.orientation.y << " "
-					<< od->pose.pose.orientation.z << " "
-					<< od->pose.pose.orientation.w
+					<< rpy(0) << " " << rpy(1) << " " << rpy(2)
 					<< std::endl;
 		}
 
@@ -468,19 +511,17 @@ namespace tools {
 	}
 }
 void show_usgae() {
-	std::cout << "1:run icp method:\
-								rosrun compare_icp_and_ndt compare_icp_and_ndt_node \
-								bag_file_path save_odom_path -icp \n";
-	std::cout << "2:run ndt method:\
-								rosrun compare_icp_and_ndt compare_icp_and_ndt_node \
-								bag_file_path save_odom_path -ndt \n";
-	std::cout << "3:save loam odom:\
-								rosrun compare_icp_and_ndt compare_icp_and_ndt_node \
-								bag_file_path save_odom_path -loam \n";
+	std::cout << "1:run icp method: rosrun compare_icp_and_ndt " << 
+		"compare_icp_and_ndt_node bag_file_path save_odom_path -icp \n";
+	std::cout << "2:run ndt method: " <<
+								"rosrun compare_icp_and_ndt compare_icp_and_ndt_node " <<
+								"bag_file_path save_odom_path -ndt \n";
+	std::cout << "3:save loam odom:" << 
+								"rosrun compare_icp_and_ndt compare_icp_and_ndt_node "<<
+								"bag_file_path save_odom_path -loam \n";
 }
 int main(int argc, char** argv) {
 	if(argc < 4) {
-		std::cout << "need bag file param!\n";
 		show_usgae();
 		exit(-1);
 	}
@@ -489,7 +530,8 @@ int main(int argc, char** argv) {
 #ifdef pandar
 	tools::CompareICPandNDT compare_icp_and_ndt(argv[1], argv[2], "/sensor/pandar/points");
 #else
-	tools::CompareICPandNDT compare_icp_and_ndt(argv[1], argv[2]);
+	//tools::CompareICPandNDT compare_icp_and_ndt(argv[1], argv[2]);
+	tools::CompareICPandNDT compare_icp_and_ndt(argv[1], argv[2] , "/hvo/keyframe/pointcloud");
 #endif
 
 	if(strcmp(argv[3] , "-ndt") == 0) {

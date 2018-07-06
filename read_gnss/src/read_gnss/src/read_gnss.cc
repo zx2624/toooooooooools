@@ -66,7 +66,13 @@ namespace tools {
 
 			cnt++;
 
-			if(covariance[0] > 2 || covariance[1] > 2 || covariance[5] > 2) {
+			if(covariance[0] > 3 ||
+					covariance[1] > 3 ||
+					covariance[2] > 3 ||
+					covariance[3] > 3 ||
+					covariance[4] > 3 ||
+					covariance[5] > 3 
+					) {
 				continue;
 			}
 
@@ -100,9 +106,14 @@ int main(int argc, char** argv) {
 		exit(-1);
 	}
 	std::cout << "bag_file_path: " << argv[1] << std::endl;
-	tools::ReadGNSS read_gnss(argv[1]);
+
+	//tools::ReadGNSS read_gnss(argv[1]);
+	//tools::ReadGNSS read_gnss(argv[1], "/localization/loam/odom");
 	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/sensor/sick/odom");
+	tools::ReadGNSS read_gnss(argv[1], "/sensor/sick/odom");
+	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne_cent/odom");
+	//tools::ReadGNSS read_gnss(argv[1], "/hvo/keyframe/lidarodom");
+	//tools::ReadGNSS read_gnss(argv[1], "/hvo/keyframe/dsoodom_opti");
 	read_gnss.SaveOdomToFile();
 	return 0;
 }
