@@ -6,9 +6,10 @@
 
 int main(int argc, char** argv) {
 
-	double roll = -0.0005;
-	double pitch = 0.05;
-	double yaw = -1.57;
+#if 1
+	double roll = 1.55559;
+	double pitch = -0.00006;
+	double yaw = -1.563;
 
 	Eigen::Matrix3d mat = Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()) *
 												Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
@@ -57,6 +58,7 @@ int main(int argc, char** argv) {
 	auto rpy_af = af.rotation().eulerAngles(2, 1, 0);
 	std::cout << "\n rpy from affine matrix: " << rpy_af(2) << " " << rpy_af(1) 
 		<< " " << rpy_af(0) << std::endl;
+#endif
 
 	//std::cout << "------------------------------\n";
 	//double quat_x = 0.014831;
@@ -81,6 +83,29 @@ int main(int argc, char** argv) {
 	//auto rpy = eigen_mat.eulerAngles(0, 1, 2);
 	//std::cout << "\n rpy from eigen matrix: " << rpy(0) << " " << rpy(1) 
 		//<< " " << rpy(2) << std::endl;
+
+	//Eigen::Quaternionf	quat1(-0.0526022, 0.763397, 0.0382588, -0.642646);
+	//Eigen::Matrix4f t1 = Eigen::Matrix4f::Identity();
+	//Eigen::Matrix3f r1(quat1);
+	//t1.block<3, 3>(0, 0) = r1;
+	//t1(0, 3) = -5.2008;
+	//t1(1, 3) = 85.5356;
+	//t1(2, 3) = -77.1247;
+
+	//Eigen::Quaternionf	quat2(-0.0506864, 0.779315, 0.0718127, -0.620437);
+	//Eigen::Matrix4f t2 = Eigen::Matrix4f::Identity();
+	//Eigen::Matrix3f r2(quat2);
+	//t2.block<3, 3>(0, 0) = r2;
+	//t2(0, 3) = 1.0318;
+	//t2(1, 3) = 85.323;
+	//t2(2, 3) = -76.0615;
+
+	//auto t1_2 = t1.inverse() * t2;
+	//Eigen::Quaternionf quat1_2(t1_2.block<3, 3>(0, 0));
+	//std::cout << "[pos, quat]: "
+		//<< t1_2(0, 3) << " " << t1_2(1, 3) << " " << t1_2(2, 3) << " "
+		//<< quat1_2.x() << " " << quat1_2.y() << " "
+		//<< quat1_2.z() << " " << quat1_2.w() << "\n"; 
 
 	return 0;
 }

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(read_gnss)
+project(read_bag_odom)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
  add_compile_options(-std=c++11)
@@ -106,7 +106,7 @@ find_package(Eigen3)
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-	#LIBRARIES read_gnss
+	#LIBRARIES read_bag_odom
   CATKIN_DEPENDS 
 	rosbag 
 	nav_msgs
@@ -128,7 +128,7 @@ include_directories(
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/read_gnss.cpp
+#   src/${PROJECT_NAME}/read_bag_odom.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -139,7 +139,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
- add_executable(${PROJECT_NAME}_node src/read_gnss.cc)
+ add_executable(${PROJECT_NAME}_node src/read_bag_odom.cc)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -196,7 +196,7 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_read_gnss.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_read_bag_odom.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

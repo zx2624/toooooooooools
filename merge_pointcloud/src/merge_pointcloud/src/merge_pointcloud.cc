@@ -22,12 +22,26 @@
 void select_points(pcl::PointCloud<pcl::PointXYZI>::Ptr source,
                    pcl::PointCloud<pcl::PointXYZI>::Ptr source_selected) {
  source_selected->clear();
-  for(unsigned int i = 0; i < source->points.size(); i++) {
+  //for(unsigned int i = 0; i < source->points.size(); i++) {
+ //for VLP32, decrease point num
+  for(unsigned int i = 0; i < source->points.size(); i+=2) {
 		if (fabs(source->points[i].x) < 1 &&
 			fabs(source->points[i].y) < 1 &&
       fabs(source->points[i].z) < 1) {//for points in car
       continue;
 		}
+		if (fabs(source->points[i].x) > 30 ||
+			fabs(source->points[i].y) > 30 ||
+      fabs(source->points[i].z) > 30 ) {
+      continue;
+		}
+
+		//TODO for 20180720 yuanboyuan data test
+		if(source->points[i].z < -3 || source->points[i].z > -2) continue; 
+
+		source->points[i].intensity =  255 * ( source->points[i].z - (-3)) / (-2 - (-3));
+		//TODO end
+
 		source_selected->push_back(source->points[i]);
 	}
 }
@@ -42,12 +56,15 @@ void MergePointcloud(std::string bag_file_path , std::string out_pcd_name,
 
 	//rosbag::View points_view(bag_, rosbag::TopicQuery("/sensor/velodyne/points"));
 	//rosbag::View odom_view(bag_, rosbag::TopicQuery("/sensor/velodyne/odom"));
-	rosbag::View points_view(bag_, rosbag::TopicQuery("/sensor/sick/points"));
-	rosbag::View odom_view(bag_, rosbag::TopicQuery("/sensor/sick/odom"));
+	//rosbag::View points_view(bag_, rosbag::TopicQuery("/sensor/sick/points"));
+	//rosbag::View odom_view(bag_, rosbag::TopicQuery("/sensor/sick/odom"));
 	//rosbag::View points_view(bag_, rosbag::TopicQuery("/sensor/pandar/points"));
 	//rosbag::View odom_view(bag_, rosbag::TopicQuery("/sensor/pandar/odom"));
 	//rosbag::View points_view(bag_, rosbag::TopicQuery("/hvo/keyframe/pointcloud"));
 	//rosbag::View odom_view(bag_, rosbag::TopicQuery("/hvo/keyframe/dsoodom_opti"));
+
+	rosbag::View points_view(bag_, rosbag::TopicQuery("/velodyne_points"));
+	rosbag::View odom_view(bag_, rosbag::TopicQuery("/pose_optimize/velodyne/odom"));
 
 	if (points_view.size() <= 0 ) {
 		std::cerr << "pointcloud size is 0!\n";
@@ -123,21 +140,24 @@ void MergePointcloud(std::string bag_file_path , std::string out_pcd_name,
 		*local_sum += *source_transformed;
 		odom_iter++;
 		pti++;
+
+		//if (cnt == 500) break;
 	}
 
 	bag_.close();
 
 	if (local_sum->points.size() > 0) {
+		std::cout << "points sum: " << local_sum->points.size() << std::endl;
 		//save to pcd file
-		pcl::io::savePCDFileASCII(out_pcd_name, *local_sum);
-		std::cout << "Save pointcloud " <<
-			out_pcd_name << std::endl;
+		//pcl::io::savePCDFileASCII(out_pcd_name, *local_sum);
+		//std::cout << "Save pointcloud " <<
+			//out_pcd_name << std::endl;
 		//ply writer
 		pcl::PLYWriter writer;
-		//defalut is ascii format
-		writer.write(out_ply_name, *local_sum);
 		std::cout << "Save ply " <<
 			out_ply_name << std::endl;
+		//defalut is ascii format
+		writer.write(out_ply_name, *local_sum);
 	}
 	else 
 		std::cout << "Local sum pointcloud size is 0\n";

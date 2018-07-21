@@ -24,9 +24,13 @@ namespace tools {
 		std::ofstream ofs("raw_odom_good.txt");
 
 		//shanghai base
-		double init_x = 327753;
-		double init_y = 3462160;
-		double init_z = 15;
+		//double init_x = 327753;
+		//double init_y = 3462160;
+		//double init_z = 15;
+
+		double init_x = 0;
+		double init_y = 0;
+		double init_z = 0;
 
 		int cnt = 0;
 		int cnt_good = 0;
@@ -68,7 +72,7 @@ namespace tools {
 
 			if(covariance[0] > 3 ||
 					covariance[1] > 3 ||
-					covariance[2] > 3 ||
+					//covariance[2] > 3 ||
 					covariance[3] > 3 ||
 					covariance[4] > 3 ||
 					covariance[5] > 3 
@@ -97,11 +101,12 @@ namespace tools {
 }
 
 void show_usgae() {
-	std::cout << "rosrun read_gnss read_gnss_node bag_file_path save_gnss_odom_path \n";
+	std::cout << 
+		"Usage: rosrun read_gnss read_gnss_node bag_file_path save_gnss_odom_path"
+		<< std::endl;
 }
 int main(int argc, char** argv) {
 	if(argc < 2) {
-		std::cout << "need bag file!\n";
 		show_usgae();
 		exit(-1);
 	}
@@ -110,10 +115,11 @@ int main(int argc, char** argv) {
 	//tools::ReadGNSS read_gnss(argv[1]);
 	//tools::ReadGNSS read_gnss(argv[1], "/localization/loam/odom");
 	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne/odom");
-	tools::ReadGNSS read_gnss(argv[1], "/sensor/sick/odom");
+	//tools::ReadGNSS read_gnss(argv[1], "/sensor/sick/odom");
 	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne_cent/odom");
 	//tools::ReadGNSS read_gnss(argv[1], "/hvo/keyframe/lidarodom");
 	//tools::ReadGNSS read_gnss(argv[1], "/hvo/keyframe/dsoodom_opti");
+	tools::ReadGNSS read_gnss(argv[1], "/pose_optimize/velodyne/odom");
 	read_gnss.SaveOdomToFile();
 	return 0;
 }

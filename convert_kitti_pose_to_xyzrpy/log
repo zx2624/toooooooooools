@@ -1,0 +1,15 @@
+Scanning dependencies of target convert_kitti_pose_to_xyzrpy
+[ 50%] Building CXX object convert_kitti_pose_to_xyzrpy/CMakeFiles/convert_kitti_pose_to_xyzrpy.dir/main.cc.o
+[100%] Linking CXX executable /home/horizon_ad/siyuan/all_kinds_of_ros_pack/convert_kitti_pose_to_xyzrpy/devel/lib/convert_kitti_pose_to_xyzrpy/convert_kitti_pose_to_xyzrpy
+[100%] Built target convert_kitti_pose_to_xyzrpy
+Base path: /home/horizon_ad/siyuan/all_kinds_of_ros_pack/convert_kitti_pose_to_xyzrpy
+Source space: /home/horizon_ad/siyuan/all_kinds_of_ros_pack/convert_kitti_pose_to_xyzrpy/src
+Build space: /home/horizon_ad/siyuan/all_kinds_of_ros_pack/convert_kitti_pose_to_xyzrpy/build
+Devel space: /home/horizon_ad/siyuan/all_kinds_of_ros_pack/convert_kitti_pose_to_xyzrpy/devel
+Install space: /home/horizon_ad/siyuan/all_kinds_of_ros_pack/convert_kitti_pose_to_xyzrpy/install
+####
+#### Running command: "make cmake_check_build_system" in "/home/horizon_ad/siyuan/all_kinds_of_ros_pack/convert_kitti_pose_to_xyzrpy/build"
+####
+####
+#### Running command: "make -j48 -l48" in "/home/horizon_ad/siyuan/all_kinds_of_ros_pack/convert_kitti_pose_to_xyzrpy/build"
+####
