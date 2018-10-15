@@ -15,6 +15,10 @@ x_bad = []
 y_bad = []
 yaw_bad = []
 
+flag = True
+x_init = 0.0
+y_init = 0.0
+
 with open(sys.argv[1]) as f:
 	for l in f:
 		line = l.split()
@@ -24,15 +28,27 @@ with open(sys.argv[1]) as f:
 		cov_roll = float(line[10])
 		cov_pitch = float(line[11])
 		cov_yaw = float(line[12])
+
+		x = float(line[1])
+		y = float(line[2])
+		yaw = float(line[6])
+
+		if(flag) :
+			x_init = x
+			y_init = y
+			flag = False
+			print("init_x : {}, init_y {}".format(x_init, y_init))
+		x -= x_init
+		y -= y_init
 #if(cov_x > 3 or cov_y > 3 or cov_z > 3 or cov_yaw > 3 or cov_roll > 3 or cov_pitch > 3) :
 		if(cov_x > 20 or cov_y > 20 or cov_z > 10000000) :
-		  x_bad.append(float(line[1]))
-		  y_bad.append(float(line[2]))
-		  yaw_bad.append(float(line[6]))
+		  x_bad.append(x)
+		  y_bad.append(y)
+		  yaw_bad.append(yaw)
 		else :
-			x_good.append(float(line[1]))
-			y_good.append(float(line[2]))
-			yaw_good.append(float(line[6]))
+			x_good.append(x)
+			y_good.append(y)
+			yaw_good.append(yaw)
 
 cos_good = np.cos(yaw_good)
 sin_good = np.sin(yaw_good)

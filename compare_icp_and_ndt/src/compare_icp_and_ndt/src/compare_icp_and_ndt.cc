@@ -20,6 +20,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/registration/icp.h>
+#include <pcl/registration/gicp.h>
 
 namespace tools {
 
@@ -28,10 +29,13 @@ namespace tools {
 		source_selected->clear();
 		for(unsigned int i = 0; i < source->points.size(); i++) {
 			pcl::PointXYZI p = source->points[i];
-			 if ((fabs(p.x) < 3 && 
+			 if ((fabs(p.x) < 2 && 
 						 fabs(p.y) < 2 &&
 						  fabs(p.z) < 2)) {//remove the lidar
 				        continue;
+			 }
+			 if (p.z < -1.5) {//remove ground
+								continue;
 			 }
 			 source_selected->push_back(p);
 		}
@@ -70,13 +74,14 @@ namespace tools {
 		pcl::NormalDistributionsTransform<pcl::PointXYZI, pcl::PointXYZI> ndt;
 		std::cout << "Using cpu ndt!" << std::endl;
 #endif
-	  ndt.setTransformationEpsilon(10e-6);
-	  ndt.setStepSize(0.01);
-		//ndt.setResolution(1);
+	  ndt.setTransformationEpsilon(0.01);
+	  ndt.setStepSize(0.1);
+		ndt.setResolution(1);
 	  ndt.setMaximumIterations(200);
 
 
 		Eigen::Matrix4f transform_source_to_target = Eigen::Matrix4f::Identity();
+		Eigen::Matrix4f last_transform_source_to_target = Eigen::Matrix4f::Identity();
 		Eigen::Matrix4f transform_start_to_now = Eigen::Matrix4f::Identity();
 
 		sensor_msgs::PointCloud2ConstPtr ros_pcd; 
@@ -112,7 +117,7 @@ namespace tools {
 				its != points_view.end();its++) {
 			count++;
 			//if(count++ == 1000) break;
-			//if(count++%5 != 0) continue;
+			if(count%5 != 0) continue;
 			//get a data instantiate
 			ros_pcd = its->instantiate<sensor_msgs::PointCloud2>();
 			pcl::fromROSMsg(*ros_pcd, *source);
@@ -124,7 +129,7 @@ namespace tools {
 				*target = *source_selected;
 
 				// Apply voxelgrid filter
-				voxel_grid_filter.setInputCloud(target);
+				//voxel_grid_filter.setInputCloud(target);
 				std::cout << "Before filter size: " << target->points.size() << std::endl;
 				//voxel_grid_filter.filter(*target);
 				std::cout << "After filter size: " << target->points.size() << std::endl;
@@ -132,7 +137,7 @@ namespace tools {
 				continue;
 			}
 			//if(!using_icp_) {
-				voxel_grid_filter.setInputCloud(source_selected);
+				//voxel_grid_filter.setInputCloud(source_selected);
 				std::cout << "Before filter size: " << source_selected->points.size() << std::endl;
 				//voxel_grid_filter.filter(*source_selected);
 				std::cout << "Before filter size: " << source_selected->points.size() << std::endl;
@@ -267,20 +272,19 @@ namespace tools {
 		// define voxelgrid filter
 		pcl::VoxelGrid<pcl::PointXYZI> voxel_grid_filter;
 		voxel_grid_filter.setLeafSize(voxel_leaf_size_, voxel_leaf_size_, voxel_leaf_size_);
-
+#ifndef USE_GICP
 		pcl::IterativeClosestPoint<pcl::PointXYZI, pcl::PointXYZI, float> icp;
-		icp.setMaxCorrespondenceDistance(10);
-		icp.setMaximumIterations(200);
-		icp.setTransformationEpsilon(1e-6);
-	  icp.setEuclideanFitnessEpsilon(0);
-
-		//ndt.setTransformationEpsilon(0.01);
-		//ndt.setStepSize(0.1);
-		//ndt.setResolution(1.0);
-		//ndt.setMaximumIterations(30);
+#else
+		pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZI, pcl::PointXYZI> icp;
+#endif
+		icp.setMaxCorrespondenceDistance(5);
+		icp.setMaximumIterations(50);
+		icp.setTransformationEpsilon(0.01);
+	  icp.setEuclideanFitnessEpsilon(0.1);
 
 		//Eigen::Matrix4f init_guess = Eigen::Matrix4f::Identity();
 		Eigen::Matrix4f transform_source_to_target = Eigen::Matrix4f::Identity();
+		Eigen::Matrix4f last_transform_source_to_target = Eigen::Matrix4f::Identity();
 		Eigen::Matrix4f transform_start_to_now = Eigen::Matrix4f::Identity();
 
 		sensor_msgs::PointCloud2ConstPtr ros_pcd; 
@@ -291,7 +295,7 @@ namespace tools {
 
 		int64_t count = 0;
 		bool has_converged = false;
-		int final_num_iteration = 0;
+		//int final_num_iteration = 0;
 		double fitness_score = 0.0;
 
 		clock_t start = clock(), end = clock();
@@ -318,23 +322,29 @@ namespace tools {
 
 			select_points(source, source_selected);
 
+			//to fake, need to be deleted
+			Eigen::Matrix4f fake = Eigen::Matrix4f::Identity();
+			fake(0, 3) = count;
+			pcl::transformPointCloud(*source_selected, *source_selected, fake);
+
+
 			if(is_first_frame) {
 				is_first_frame = false;
 				*target = *source_selected;
 
-				// Apply voxelgrid filter
-				voxel_grid_filter.setInputCloud(target);
 				std::cout << "Before filter size: " << target->points.size() << std::endl;
+				// Apply voxelgrid filter
+				//voxel_grid_filter.setInputCloud(target);
 				//voxel_grid_filter.filter(*target);
 				std::cout << "After filter size: " << target->points.size() << std::endl;
 
 				continue;
 			}
 			//if(!using_icp_) {
-				voxel_grid_filter.setInputCloud(source_selected);
 				std::cout << "Before filter size: " << source_selected->points.size() << std::endl;
+				//voxel_grid_filter.setInputCloud(source_selected);
 				//voxel_grid_filter.filter(*source_selected);
-				std::cout << "Before filter size: " << source_selected->points.size() << std::endl;
+				std::cout << "After filter size: " << source_selected->points.size() << std::endl;
 
 				icp.setInputTarget(target);
 				std::cout << "Target pointcloud size: " << target->points.size() << std::endl;
@@ -343,15 +353,17 @@ namespace tools {
 				std::cout << "Source pointcloud size: " << source_selected->points.size() << std::endl;
 
 				start = clock();
+
 				icp.align(aligned);
 				end = clock();
 				time_count.push_back((end - start) * 1000/CLOCKS_PER_SEC);//get millisecond
 
 				transform_source_to_target = icp.getFinalTransformation();
 
+				last_transform_source_to_target = transform_source_to_target;
+
 				has_converged = icp.hasConverged();
 				fitness_score = icp.getFitnessScore();
-				//final_num_iteration = icp.getFinalNumIteration();
 			
 				transform_start_to_now = transform_start_to_now * transform_source_to_target;
 
@@ -394,8 +406,7 @@ namespace tools {
 
 				std::cout << "| has_converged | fitness_score | final_num_iteration| \n";
 				std::cout << has_converged << " | "
-									<< fitness_score << " | "
-									<< final_num_iteration << " | \n";
+									<< fitness_score << " | \n";
 			//}
 
 			//ofs << std::fixed << std::setprecision(6)
@@ -413,6 +424,7 @@ namespace tools {
 						quat.z(),
 						quat.w()
 						)).getRPY(rpy(0), rpy(1), rpy(2));
+
 			ofs << std::fixed << std::setprecision(6)
 					<< ros_pcd->header.stamp.toSec() << " "
 				  << std::fixed << std::setprecision(3)
@@ -422,12 +434,31 @@ namespace tools {
 					<< rpy(0) << " " << rpy(1) << " " << rpy(2)
 					<< std::endl;
 
-			std::cout << std::fixed << std::setprecision(6)
+			std::cout << "T_0_i : "
+					<< std::fixed << std::setprecision(6)
 					<< ros_pcd->header.stamp.toSec() << " "
 				  << std::fixed << std::setprecision(3)
 					<< transform_start_to_now(0, 3) << " "
 					<< transform_start_to_now(1, 3) << " "
 					<< transform_start_to_now(2, 3) << " "
+					<< rpy(0) << " " << rpy(1) << " " << rpy(2)
+					<< std::endl;
+
+			quat = transform_source_to_target.block<3, 3>(0, 0);
+			tf::Matrix3x3(tf::Quaternion(
+						quat.x(),
+						quat.y(),
+						quat.z(),
+						quat.w()
+						)).getRPY(rpy(0), rpy(1), rpy(2));
+
+			std::cout << "T_i_i+1 : "
+					<< std::fixed << std::setprecision(6)
+					<< ros_pcd->header.stamp.toSec() << " "
+				  << std::fixed << std::setprecision(3)
+					<< transform_source_to_target(0, 3) << " "
+					<< transform_source_to_target(1, 3) << " "
+					<< transform_source_to_target(2, 3) << " "
 					<< rpy(0) << " " << rpy(1) << " " << rpy(2)
 					<< std::endl;
 
@@ -527,12 +558,12 @@ int main(int argc, char** argv) {
 	}
 	std::cout << "bag_file_path: " << argv[1] << std::endl
 						<< "output_odom_path: "<< argv[2] << std::endl;
-#ifdef pandar
-	tools::CompareICPandNDT compare_icp_and_ndt(argv[1], argv[2], "/sensor/pandar/points");
-#else
-	//tools::CompareICPandNDT compare_icp_and_ndt(argv[1], argv[2]);
-	tools::CompareICPandNDT compare_icp_and_ndt(argv[1], argv[2] , "/hvo/keyframe/pointcloud");
-#endif
+
+	tools::CompareICPandNDT compare_icp_and_ndt(argv[1], argv[2], "/sensor/velodyne/points");
+	//tools::CompareICPandNDT compare_icp_and_ndt(argv[1], argv[2], "/pandar_node/pandar_points");
+	//tools::CompareICPandNDT compare_icp_and_ndt(argv[1], argv[2], "/sensor/pandar/points");
+	//tools::CompareICPandNDT compare_icp_and_ndt(argv[1], argv[2] , "/hvo/keyframe/pointcloud");
+	//tools::CompareICPandNDT compare_icp_and_ndt(argv[1], argv[2] , "/velodyne_points");
 
 	if(strcmp(argv[3] , "-ndt") == 0) {
 		clock_t start = clock();
@@ -540,6 +571,11 @@ int main(int argc, char** argv) {
 		std::cout << "total time: " << (clock()- start) * 1000/CLOCKS_PER_SEC << std::endl;
 	}
 	else if(strcmp(argv[3] , "-icp") == 0) {
+#ifdef USE_GICP
+		std::cout << "Use GICP!\n";
+#else
+		std::cout << "Use Standard ICP!\n";
+#endif
 		clock_t start = clock();
 		compare_icp_and_ndt.SaveOdomToFileUsingICP();
 		std::cout << "total time: " << (clock()- start) * 1000/CLOCKS_PER_SEC << std::endl;

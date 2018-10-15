@@ -70,12 +70,12 @@ namespace tools {
 
 			cnt++;
 
-			if(covariance[0] > 3 ||
-					covariance[1] > 3 ||
-					//covariance[2] > 3 ||
-					covariance[3] > 3 ||
-					covariance[4] > 3 ||
-					covariance[5] > 3 
+			if(covariance[0] > 10 ||
+					covariance[1] > 10 ||
+					//covariance[2] > 10 ||
+					//covariance[3] > 10 ||
+					//covariance[4] > 10 ||
+					covariance[5] > 10 
 					) {
 				continue;
 			}
@@ -102,7 +102,7 @@ namespace tools {
 
 void show_usgae() {
 	std::cout << 
-		"Usage: rosrun read_gnss read_gnss_node bag_file_path save_gnss_odom_path"
+		"Usage: rosrun read_gnss read_gnss_node bag_file_path "
 		<< std::endl;
 }
 int main(int argc, char** argv) {
@@ -114,12 +114,21 @@ int main(int argc, char** argv) {
 
 	//tools::ReadGNSS read_gnss(argv[1]);
 	//tools::ReadGNSS read_gnss(argv[1], "/localization/loam/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne/odom");
+	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne_new_extrinsic/odom");
+	//tools::ReadGNSS read_gnss(argv[1], "/pose_optimize/pandar_0912_18_more_good_2/odom");
 	//tools::ReadGNSS read_gnss(argv[1], "/sensor/sick/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne_cent/odom");
+	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne/odom");
 	//tools::ReadGNSS read_gnss(argv[1], "/hvo/keyframe/lidarodom");
 	//tools::ReadGNSS read_gnss(argv[1], "/hvo/keyframe/dsoodom_opti");
-	tools::ReadGNSS read_gnss(argv[1], "/pose_optimize/velodyne/odom");
+	//tools::ReadGNSS read_gnss(argv[1], "/pose_optimize/pandar/odom");
+	tools::ReadGNSS read_gnss(argv[1], "/sensor/novatel/odom");
+	//tools::ReadGNSS read_gnss(argv[1], "/sensor/gnss/odom");
+	//tools::ReadGNSS read_gnss(argv[1], "/sensor/rslidar/odom");
+	//tools::ReadGNSS read_gnss(argv[1], "/localization/filtered/odom");
+	//tools::ReadGNSS read_gnss(argv[1], "/fusion/odom");
+	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne_front/odom");
+	//tools::ReadGNSS read_gnss(argv[1], "/pose_optimize/velodyne_0929_GICP_all_odom/odom");
+
 	read_gnss.SaveOdomToFile();
 	return 0;
 }
