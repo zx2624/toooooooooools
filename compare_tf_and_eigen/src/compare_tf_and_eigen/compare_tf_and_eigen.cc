@@ -6,10 +6,30 @@
 
 int main(int argc, char** argv) {
 
-#if 1
-	double roll = 1.55559;
-	double pitch = -0.00006;
-	double yaw = -1.563;
+	Eigen::Quaterniond quat_zero(1, 0, 0, 0);
+
+	Eigen::Matrix3d mat = Eigen::AngleAxisd(1.57, Eigen::Vector3d::UnitZ()) *
+												Eigen::AngleAxisd(0, Eigen::Vector3d::UnitY()) *
+												Eigen::AngleAxisd(0, Eigen::Vector3d::UnitX()).matrix();
+	Eigen::Quaterniond quat_big;
+	quat_big = mat;
+	std::cout << "Quat_big from eigen matrix: " << quat_big.x() << " " 
+		<< quat_big.y() << " " << quat_big.z() << " " << quat_big.w() << std::endl;
+	auto quat = quat_zero.slerp(0, quat_big);
+	std::cout << "Quat from eigen matrix: " << quat.x() << " " 
+		<< quat.y() << " " << quat.z() << " " << quat.w() << std::endl;
+
+	double roll = 0, pitch = 0, yaw = 0;
+	tf::Matrix3x3(tf::Quaternion(
+				quat.x(), quat.y(), quat.z(), quat.w()
+	)).getRPY(roll, pitch, yaw);
+
+	std::cout << "RPY: " << roll << " " << pitch << " " << yaw << std::endl;
+
+#if 0
+	double roll = 0;
+	double pitch = 0;
+	double yaw = 0;
 
 	Eigen::Matrix3d mat = Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()) *
 												Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
@@ -107,5 +127,61 @@ int main(int argc, char** argv) {
 		//<< quat1_2.x() << " " << quat1_2.y() << " "
 		//<< quat1_2.z() << " " << quat1_2.w() << "\n"; 
 
+#if 0
+	Eigen::Matrix4d pre_odom;
+	pre_odom << 
+		0.627307, -0.778757, 0.004787, -2.394344, 
+		0.778771, 0.627300, -0.002955, 1.020830, 
+		-0.000701, 0.005582, 0.999984, 232.669088, 
+		0.000000, 0.000000, 0.000000, 1.000000;
+
+		//0.627, -0.779, 0.001, -2.361,
+		//0.779, 0.627, -0.001, 0.988,
+		//0.000, 0.002, 1.000, 232.661,
+		//0.000, 0.000, 0.000, 1.000;
+
+	Eigen::Matrix4d next_odom;
+	next_odom << 
+		0.620740, -0.784006, 0.004139, -2.708991, 
+		0.784016, 0.620737, -0.002135, 1.252860, 
+		-0.000895, 0.004570, 0.999989, 232.661787, 
+		0.000000, 0.000000, 0.000000, 1.000000;
+		//0.627, -0.779, 0.003, -2.370,
+		//0.779, 0.627, -0.000, 0.997,
+		//-0.001, 0.002, 1.000, 232.655,
+		//0.000, 0.000, 0.000, 1.000;
+
+	Eigen::Matrix4d mat_icp;
+	mat_icp << 
+		0.999999, 0.001222, 0.000741, -0.056108, 
+		-0.001222, 0.999999, -0.000418, 0.064697, 
+		-0.000741, 0.000418, 1.000000, -0.001257, 
+		0.000000, 0.000000, 0.000000, 1.000000;
+		 //1.000, 0.000, -0.002, 0.370,
+		//-0.000, 1.000, -0.001, 0.291,
+		//0.002, 0.001, 1.000, 0.009,
+		//0.000, 0.000, 0.000, 1.000;
+	auto temp_mat = pre_odom.inverse() * mat_icp * next_odom;
+	std::cout << pre_odom.inverse() * mat_icp * next_odom << "\n\n";
+	std::cout << temp_mat<< "\n\n";
+	std::cout << pre_odom.inverse() * next_odom << "\n\n";
+
+#endif
+	//double roll = 0.111;
+	//double pitch = 0;
+	//double yaw = 90 * M_PI / 180.0;
+	//Eigen::Matrix3d rotation = Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()) *
+												//Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
+												//Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()).matrix();
+	//std::cout << "rotation:\n" <<  rotation << std::endl;
+	//std::cout << "rotation(float):\n" <<  rotation.cast<float>() << std::endl;
+
+
+	//Eigen::Vector3d translation(-0.156, -0.78, -0.8);
+	//std::cout << "translation:\n" <<  translation<< std::endl;
+
+	//translation = -rotation.transpose() * translation;
+	//std::cout << "translation:\n" <<  translation.cast<float>() << std::endl;
+	//std::cout << "translation(float):\n" <<  translation.cast<float>() << std::endl;
 	return 0;
 }

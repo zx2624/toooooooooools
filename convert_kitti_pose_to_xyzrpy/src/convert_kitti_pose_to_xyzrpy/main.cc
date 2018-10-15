@@ -3,7 +3,7 @@
 // FILE:     main.cc
 // ROLE:     TODO (some explanation)
 // CREATED:  2018-07-18 19:11:40
-// MODIFIED: 2018-07-19 17:46:14
+// MODIFIED: 2018-07-27 11:58:01
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -59,13 +59,12 @@ int main(int argc, char **argv) {
 	ifs.close();
 
 	//TODO
-	camera_to_lidar(0, 0) = 7.533745e-03, camera_to_lidar(0, 1) = -9.999714e-01;
-	camera_to_lidar(0, 2) = -6.166020e-04;
-	camera_to_lidar(1, 0) = 1.480249e-02, camera_to_lidar(1, 1) = 7.280733e-04;
-	camera_to_lidar(1, 2) = -9.998902e-01;
-	camera_to_lidar(2, 0) = 9.998621e-01, camera_to_lidar(2, 1) = 7.523790e-03;
-	camera_to_lidar(2, 2) = 1.480755e-02;
-
+	//camera_to_lidar(0, 0) = 7.533745e-03, camera_to_lidar(0, 1) = -9.999714e-01;
+	//camera_to_lidar(0, 2) = -6.166020e-04;
+	//camera_to_lidar(1, 0) = 1.480249e-02, camera_to_lidar(1, 1) = 7.280733e-04;
+	//camera_to_lidar(1, 2) = -9.998902e-01;
+	//camera_to_lidar(2, 0) = 9.998621e-01, camera_to_lidar(2, 1) = 7.523790e-03;
+	//camera_to_lidar(2, 2) = 1.480755e-02;
 	//end
 
 	cout << "camera_to_lidar:\n" << camera_to_lidar << "\n";

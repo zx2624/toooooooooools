@@ -100,7 +100,7 @@ find_package(catkin REQUIRED
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+#INCLUDE_DIRS axxb
 #  LIBRARIES compare_tf_and_eigen
 	CATKIN_DEPENDS tf
 #  DEPENDS system_lib
@@ -113,15 +113,15 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+ axxb
  ${catkin_INCLUDE_DIRS}
  ${EIGEN3_INCLUDE_DIR}
 )
 
 ## Declare a C++ library
-# add_library(${PROJECT_NAME}
+#add_library(xxx SHARED ${SRC}}
 #   src/${PROJECT_NAME}/compare_tf_and_eigen.cpp
-# )
+#)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
