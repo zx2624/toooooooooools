@@ -123,14 +123,16 @@ def gmap_plot(gps_lat, gps_lon, path, x_range, y_range, cen_lat, cen_lon):
 
 	cnt = len(gps_lat) - 1
 
-	ratio = 256 * 256 * 256 / cnt
-
 	for a in range(cnt):
-		a = a * ratio
-		v1 = a / (256 * 256)
-		v2 = (a - v1 * 256 * 256) / 256
-		v3 = (a - v1 * 256 * 256 - v2 * 256)
+		#use 85 radix to instead 256
+		v1 = a / ( 85 * 85)
+		v2 = (a - v1 * 85 * 85) / 85
+		v3 = (a - v1 * 85 * 85 - v2 * 85)
 		
+		v1 = v1 * 3 % 256 
+		v2 = v2 * 3 % 256 
+		v3 = v3 * 3 % 256 
+
 		prefix = '0'
 		rr = str(hex(v1))[2:]
 		if len(rr) < 2:
@@ -145,8 +147,7 @@ def gmap_plot(gps_lat, gps_lon, path, x_range, y_range, cen_lat, cen_lon):
 		  bb = prefix + bb
 		
 		color = '#' + rr + gg + bb
-		start = a / ratio
-		gmap.plot(gps_lat[start : start + 2], gps_lon[start : start + 2], color, edge_width=10)
+		gmap.plot(gps_lat[a : a + 2], gps_lon[a : a + 2], color, edge_width=10)
 
 	# gmap.plot(gps_lat, gps_lon, 'cornflowerblue', edge_width=10)
 	# gmap.plot(gps_lat, gps_lon, 'cornflowerblue', edge_width=10)
