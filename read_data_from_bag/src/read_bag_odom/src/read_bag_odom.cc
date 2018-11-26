@@ -70,12 +70,12 @@ namespace tools {
 
 			cnt++;
 
-			if(covariance[0] > 10 ||
-					covariance[1] > 10 ||
-					//covariance[2] > 10 ||
-					//covariance[3] > 10 ||
-					//covariance[4] > 10 ||
-					covariance[5] > 10 
+			if(covariance[0] > 2 ||
+					covariance[1] > 2 ||
+					covariance[2] > 10 ||
+					covariance[3] > 2 ||
+					covariance[4] > 2 ||
+					covariance[5] > 2 
 					) {
 				continue;
 			}
@@ -121,13 +121,16 @@ int main(int argc, char** argv) {
 	//tools::ReadGNSS read_gnss(argv[1], "/hvo/keyframe/lidarodom");
 	//tools::ReadGNSS read_gnss(argv[1], "/hvo/keyframe/dsoodom_opti");
 	//tools::ReadGNSS read_gnss(argv[1], "/pose_optimize/pandar/odom");
-	tools::ReadGNSS read_gnss(argv[1], "/sensor/novatel/odom");
+	//tools::ReadGNSS read_gnss(argv[1], "/sensor/novatel/odom");
 	//tools::ReadGNSS read_gnss(argv[1], "/sensor/gnss/odom");
+	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne/odom");
 	//tools::ReadGNSS read_gnss(argv[1], "/sensor/rslidar/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/localization/filtered/odom");
+	tools::ReadGNSS read_gnss(argv[1], "/localization/filtered/odom");
 	//tools::ReadGNSS read_gnss(argv[1], "/fusion/odom");
 	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne_front/odom");
 	//tools::ReadGNSS read_gnss(argv[1], "/pose_optimize/velodyne_0929_GICP_all_odom/odom");
+	//tools::ReadGNSS read_gnss(argv[1], "/localization/odom_vel");
+	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne_1/odom");
 
 	read_gnss.SaveOdomToFile();
 	return 0;

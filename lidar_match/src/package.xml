@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>compare_icp_and_ndt</name>
+  <name>lidar_match</name>
   <version>0.0.0</version>
-  <description>The compare_icp_and_ndt package</description>
+  <description>The lidar_match package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -19,7 +19,7 @@
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/read_gnss</url> -->
+  <!-- <url type="website">http://wiki.ros.org/lidar_match</url> -->
 
 
   <!-- Author tags are optional, multiple are allowed, one per tag -->
@@ -32,18 +32,12 @@
   <!-- Dependencies can be catkin packages or system dependencies -->
   <!-- Examples: -->
   <!-- Use depend as a shortcut for packages that are both build and exec dependencies -->
-  <!--   <depend>roscpp</depend> -->
+  <depend>roscpp</depend>
+  <depend>rosbag</depend>
+  <depend>pcl_conversions</depend>
+  <depend>sensor_msgs</depend>
   <!--   Note that this is equivalent to the following: -->
   <!--   <build_depend>roscpp</build_depend> -->
-     <!-- 
-		 <build_depend>roscpp</build_depend> 
-		 -->
-     <build_depend>sensor_msgs</build_depend>
-     <build_depend>rosbag</build_depend>
-     <build_depend>ndt_gpu</build_depend>
-     <build_depend>velodyne_cloud</build_depend>
-     <build_depend>pcl_conversions</build_depend>
-     <build_depend>lidar3d_loc</build_depend>
   <!--   <exec_depend>roscpp</exec_depend> -->
   <!-- Use build_depend for packages you need at compile time: -->
   <!--   <build_depend>message_generation</build_depend> -->
@@ -53,15 +47,6 @@
   <!--   <buildtool_depend>catkin</buildtool_depend> -->
   <!-- Use exec_depend for packages you need at runtime: -->
   <!--   <exec_depend>message_runtime</exec_depend> -->
-	<!--
-	<exec_depend>roscpp</exec_depend>
-	-->
-	<exec_depend>rosbag</exec_depend>
-	<exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>ndt_gpu</exec_depend>
-  <exec_depend>velodyne_cloud</exec_depend>
-  <exec_depend>pcl_conversions</exec_depend>
-  <exec_depend>lidar3d_loc</exec_depend>
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
   <!-- Use doc_depend for packages you need only for building documentation: -->

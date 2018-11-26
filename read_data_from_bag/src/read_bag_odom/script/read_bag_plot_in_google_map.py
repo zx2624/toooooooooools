@@ -212,13 +212,17 @@ def get_scale(x_range, y_range):
 def main(bags, path):
 	# choose one topic  
 	topic_name = '/sensor/novatel/odom'
+#topic_name = '/sensor/gnss/odom'
+
 	readmsg(topic_name, bags, path)
 
 def usage():
-	print("1. rosrun test.py -f 0914.bag")
-	print("2. test.py -d /media/0914")
+	print("1. rosrun read_bag_plot_in_google_map.py -f /media/test.bag")
+	print("2. rosrun read_bag_plot_in_google_map.py -d /media/test")
 
 if __name__ == '__main__':
+	if len(sys.argv) < 2:
+		usage()
 	argv = sys.argv[1:]
 	bags = []
 	path = ''

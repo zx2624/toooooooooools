@@ -21,6 +21,8 @@ namespace tools {
 
 		 void SaveOdomToFileUsingNDT();
 		 void SaveOdomToFileUsingICP();
+		 void SaveOdomToFileUsingGICP();
+		 void SaveOdomToFileUsingLOAM_match();
 		 void SaveLoamOdomToFile();
 	 private :
 		 rosbag::Bag bag_;

@@ -1,31 +1,19 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(compare_icp_and_ndt)
+project(lidar_match)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -DNDEBUG -DVIEWER ${CMAKE_CXX_FLAGS}")
-#SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -DNDEBUG -DUSE_GICP ${CMAKE_CXX_FLAGS}")
-#SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall ${CMAKE_CXX_FLAGS}")
-#SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall -DCUDA_NDT ${CMAKE_CXX_FLAGS}")
-#SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall -DCUDA_NDT -Dpandar ${CMAKE_CXX_FLAGS}")
+add_compile_options(-std=c++11)
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O2  ${CMAKE_CXX_FLAGS}")
+#SET(CMAKE_CXX_FLAGS "-std=c++11 -g ${CMAKE_CXX_FLAGS}")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS
-		rosbag
-		sensor_msgs
-		ndt_gpu
-		velodyne_pointcloud
-		pcl_conversions
-		lidar3d_loc
-		)
+find_package(catkin REQUIRED roscpp pcl_conversions sensor_msgs rosbag)
 
 ## System dependencies are found with CMake's conventions
 find_package(PCL)
-MESSAGE("pcl_path: " ${PCL_INCLUDE_DIRS})
 
-find_package(CUDA)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -42,10 +30,10 @@ find_package(CUDA)
 ##   your messages/services/actions (e.g. std_msgs, actionlib_msgs, ...).
 ## * In the file package.xml:
 ##   * add a build_depend tag for "message_generation"
-##   * add a build_depend and a run_depend tag for each package in MSG_DEP_SET
+##   * add a build_depend and a exec_depend tag for each package in MSG_DEP_SET
 ##   * If MSG_DEP_SET isn't empty the following dependency has been pulled in
 ##     but can be declared for certainty nonetheless:
-##     * add a run_depend tag for "message_runtime"
+##     * add a exec_depend tag for "message_runtime"
 ## * In this file (CMakeLists.txt):
 ##   * add "message_generation" and every package in MSG_DEP_SET to
 ##     find_package(catkin REQUIRED COMPONENTS ...)
@@ -90,7 +78,7 @@ find_package(CUDA)
 ## To declare and build dynamic reconfigure parameters within this
 ## package, follow these steps:
 ## * In the file package.xml:
-##   * add a build_depend and a run_depend tag for "dynamic_reconfigure"
+##   * add a build_depend and a exec_depend tag for "dynamic_reconfigure"
 ## * In this file (CMakeLists.txt):
 ##   * add "dynamic_reconfigure" to
 ##     find_package(catkin REQUIRED COMPONENTS ...)
@@ -113,15 +101,9 @@ find_package(CUDA)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  INCLUDE_DIRS include
-	#LIBRARIES read_gnss
-  CATKIN_DEPENDS 
-	rosbag 
-	sensor_msgs
-	ndt_gpu
-	velodyne_cloud
-	pcl_conversions
-	lidar3d_loc
+#  INCLUDE_DIRS include
+#  LIBRARIES lidar_match
+  CATKIN_DEPENDS roscpp sensor_msgs pcl_conversions rosbag
 #  DEPENDS system_lib
 )
 
@@ -132,15 +114,14 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
- include
+# include
  ${catkin_INCLUDE_DIRS}
  ${PCL_INCLUDE_DIRS}
- ${CUDA_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/read_gnss.cpp
+#   src/${PROJECT_NAME}/lidar_match.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -151,7 +132,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
- add_executable(${PROJECT_NAME}_node src/compare_icp_and_ndt.cc)
+ add_executable(${PROJECT_NAME}_node lidar_match.cc)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -165,7 +146,8 @@ include_directories(
 
 ## Specify libraries to link a library or executable target against
  target_link_libraries(${PROJECT_NAME}_node
-   ${catkin_LIBRARIES} ${PCL_LIBRARIES} 
+   ${catkin_LIBRARIES}
+	 ${PCL_LIBRARIES}
  )
 
 #############
@@ -208,7 +190,7 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_read_gnss.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_lidar_match.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

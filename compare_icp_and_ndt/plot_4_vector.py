@@ -45,10 +45,25 @@ with open(sys.argv[3]) as f:
 cos_3 = np.cos(yaw_3)
 sin_3 = np.sin(yaw_3)
 
+x_4 = []
+y_4 = []
+yaw_4 = []
+
+with open(sys.argv[4]) as f:
+	for l in f:
+		line = l.split()
+		x_4.append(float(line[1]))
+		y_4.append(float(line[2]))
+		yaw_4.append(float(line[6]))
+
+cos_4 = np.cos(yaw_4)
+sin_4 = np.sin(yaw_4)
+
 # plt.quiver(x_s, y_s, cos_s, sin_s, units='width', color='r', label="odom")
 plt.quiver(x_1, y_1, cos_1, sin_1, scale=4, scale_units='inches', color='r', label="icp")
 plt.quiver(x_2, y_2, cos_2, sin_2, scale=4, scale_units='inches', color='g', label="gicp")
 plt.quiver(x_3, y_3, cos_3, sin_3, scale=4, scale_units='inches', color='b', label="loam_match")
+plt.quiver(x_4, y_4, cos_4, sin_4, scale=4, scale_units='inches', color='k', label="ndt")
 
 plt.axis('equal')
 plt.legend()
