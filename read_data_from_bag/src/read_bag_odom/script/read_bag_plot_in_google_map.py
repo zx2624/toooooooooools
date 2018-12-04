@@ -51,6 +51,7 @@ def readmsg(topic_name, bags, path_of_bag):
 
 	# set a flag
 	Iter = 0
+	invalid_num = 0
 
 	for bag_file in bags:
 		# open bag
@@ -64,16 +65,6 @@ def readmsg(topic_name, bags, path_of_bag):
 			northing = msg.pose.pose.position.y
 			altitude = msg.pose.pose.position.z
 
-			if max_x < easting:
-				max_x = easting
-			if min_x > easting:
-				min_x = easting
-
-			if max_y < northing:
-				max_y = northing
-			if min_y > northing:
-				min_y = northing
-
 			print("easting:{} northing:{} altitude:{}".format(easting, northing, altitude))
 			#convert easting, northing, altitude to latitude, longitude, altitude
 			point = utm.UTMPoint(easting, northing, altitude, 50, 'S').toMsg()
@@ -82,6 +73,9 @@ def readmsg(topic_name, bags, path_of_bag):
 
 		# transform from GCJ-2 to WGS-84
 			ret = WGS2GCJ(point.latitude, point.longitude)
+			if not ret[2]:
+			  invalid_num+=1
+			  continue
 
 			gps_lat.append(ret[0])
 			gps_lon.append(ret[1])
@@ -96,11 +90,23 @@ def readmsg(topic_name, bags, path_of_bag):
 			if min_lon > ret[1]:
 				min_lon = ret[1]
 
+			if max_x < easting:
+				max_x = easting
+			if min_x > easting:
+				min_x = easting
+
+			if max_y < northing:
+				max_y = northing
+			if min_y > northing:
+				min_y = northing
+
+
 			Iter += 1
 
 		bag.close()
 
 	print("Read {} points!".format(Iter))
+	print("Read {} invalid points!".format(invalid_num))
 
 	# get center point's latitude, longitude
 	center_lat = (max_lat + min_lat) / 2.0
@@ -135,7 +141,7 @@ def gmap_plot(gps_lat, gps_lon, path, x_range, y_range, cen_lat, cen_lon):
 		# v2 = v2 * 3 % 256 
 		# v3 = v3 * 3 % 256 
 
-		print("{}".format((a / 32) % 256))
+		# print("{}".format((a / 32) % 256))
 		v1 = (int)(255 * R[(a / 32) % 64 ]) % 256
 		v2 = (int)(255 * G[(a / 32) % 64 ]) % 256
 		v3 = (int)(255 * B[(a / 32) % 64 ]) % 256
@@ -156,7 +162,7 @@ def gmap_plot(gps_lat, gps_lon, path, x_range, y_range, cen_lat, cen_lon):
 		
 		color = '#' + rr + gg + bb
 		# gmap.plot(gps_lat[a : a + 2], gps_lon[a : a + 2], color, edge_width=10)
-		gmap.plot(gps_lat[a : a + 2], gps_lon[a : a + 2], color, edge_width=5)
+		gmap.plot(gps_lat[a : a + 2], gps_lon[a : a + 2], color, edge_width=1)
 
 	# gmap.plot(gps_lat, gps_lon, 'cornflowerblue', edge_width=10)
 	# gmap.plot(gps_lat, gps_lon, 'cornflowerblue', edge_width=10)
@@ -257,8 +263,6 @@ if __name__ == '__main__':
 			usage()
 		# print('bags: {}'.format(bags))
 		print('path: {}'.format(path))
-
-		
-		print("{} {} {}".format(len(R), len(G), len(B)))
+		# print("{} {} {}".format(len(R), len(G), len(B)))
 
 		main(bags, path)	

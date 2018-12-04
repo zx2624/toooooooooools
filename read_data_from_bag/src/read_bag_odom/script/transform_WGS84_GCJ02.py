@@ -12,10 +12,10 @@ ee = 0.00669342162296594323
 
 # Mars Geodetic System ==> World Geodetic System
 def GCJ2WGS(lat, lon):
-	g_lat, g_lon = WGS2GCJ(lat, lon)
+	g_lat, g_lon , is_good = WGS2GCJ(lat, lon)
 	d_lat = g_lat - lat
 	d_lon = g_lon - lon
-	return lat - d_lat, lon - d_lon
+	return lat - d_lat, lon - d_lon, is_good
 
 # World Geodetic System ==> Mars Geodetic System
 def WGS2GCJ(wgLat, wgLon):
@@ -26,7 +26,7 @@ def WGS2GCJ(wgLat, wgLon):
 	if(outOfChina(wgLat, wgLon)):
 		mgLat = wgLat
 		mgLon = wgLon
-		return mgLat, mgLon
+		return mgLat, mgLon, False
 	dLat = transformLat(wgLon - 105.0, wgLat - 35.0)
 	dLon = transformLon(wgLon - 105.0, wgLat - 35.0)
 	radLat = wgLat / 180.0 * pi
@@ -37,7 +37,7 @@ def WGS2GCJ(wgLat, wgLon):
 	dLon = (dLon * 180.0) / (a / sqrtMagic * cos(radLat) * pi)
 	mgLat = wgLat + dLat
 	mgLon = wgLon + dLon
-	return mgLat,mgLon
+	return mgLat,mgLon, True
 
 def outOfChina(lat, lon):
 	if (lon < 72.004 or lon > 137.8347):
