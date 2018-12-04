@@ -102,36 +102,17 @@ namespace tools {
 
 void show_usgae() {
 	std::cout << 
-		"Usage: rosrun read_gnss read_gnss_node bag_file_path "
+		"Usage: rosrun read_gnss read_gnss_node bag_file_path odom_topic_name"
 		<< std::endl;
 }
 int main(int argc, char** argv) {
-	if(argc < 2) {
+	if(argc < 3) {
 		show_usgae();
 		exit(-1);
 	}
 	std::cout << "bag_file_path: " << argv[1] << std::endl;
 
-	//tools::ReadGNSS read_gnss(argv[1]);
-	//tools::ReadGNSS read_gnss(argv[1], "/localization/loam/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne_new_extrinsic/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/pose_optimize/pandar_0912_18_more_good_2/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/sensor/sick/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/hvo/keyframe/lidarodom");
-	//tools::ReadGNSS read_gnss(argv[1], "/hvo/keyframe/dsoodom_opti");
-	//tools::ReadGNSS read_gnss(argv[1], "/pose_optimize/pandar/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/sensor/novatel/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/sensor/gnss/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/sensor/rslidar/odom");
-	tools::ReadGNSS read_gnss(argv[1], "/localization/filtered/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/fusion/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne_front/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/pose_optimize/velodyne_0929_GICP_all_odom/odom");
-	//tools::ReadGNSS read_gnss(argv[1], "/localization/odom_vel");
-	//tools::ReadGNSS read_gnss(argv[1], "/sensor/velodyne_1/odom");
-
+	tools::ReadGNSS read_gnss(argv[1], argv[2]);
 	read_gnss.SaveOdomToFile();
 	return 0;
 }

@@ -26,7 +26,7 @@ def WGS2GCJ(wgLat, wgLon):
 	if(outOfChina(wgLat, wgLon)):
 		mgLat = wgLat
 		mgLon = wgLon
-		return
+		return mgLat, mgLon
 	dLat = transformLat(wgLon - 105.0, wgLat - 35.0)
 	dLon = transformLon(wgLon - 105.0, wgLat - 35.0)
 	radLat = wgLat / 180.0 * pi
