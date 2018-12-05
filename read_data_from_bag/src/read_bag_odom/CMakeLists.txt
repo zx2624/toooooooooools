@@ -167,6 +167,7 @@ include_directories(
 ## in contrast to setup.py, you can choose the destination
  install(PROGRAMS
    scripts/read_data_from_bag_and_plot_in_google_map.py
+   scripts/read_odom_and_compare.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 

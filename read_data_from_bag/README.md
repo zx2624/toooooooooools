@@ -1,3 +1,10 @@
+#### Environments
+```
+sudo apt-get install python-pip
+sudo apt-get install chromium-chromedriver
+sudo pip install transforms3d selenium matplotlib gmplot
+```
+
 #### Instruciton
 ##### 1.Copy a bash file from tempalte read_plot_mutil_bag_in_map.bash.template
 ```
