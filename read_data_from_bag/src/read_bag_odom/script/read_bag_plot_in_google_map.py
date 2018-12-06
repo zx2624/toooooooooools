@@ -326,6 +326,28 @@ def usage():
 	print("2. rosrun read_bag_plot_in_google_map.py -d /media/test /sensor/novatel/odom")
 	sys.exit()
 
+def sort(path, bags):
+	results = []
+	bag_name_suffix_num = []
+	bag_name = []
+
+	for bag in bags:
+		bag_name = bag.split('/')[-1]
+		#bag_name_prefix = bag_name.split('_')[0]
+		bag_name_suffix_num.append(int(bag_name.split('_')[1][:-4]))
+	bag_name_suffix_num.sort()
+
+	bag_name_prefix = bag_name.split('_')[0]
+
+	if path[-1] != '/':
+		path = path + '/'
+
+	for i in range(len(bag_name_suffix_num)):
+		results.append(path + bag_name_prefix + '_' +
+			str(bag_name_suffix_num[i]) + '.bag')
+
+	return results
+
 if __name__ == '__main__':
 	if len(sys.argv) < 4:
 		usage()
@@ -348,9 +370,15 @@ if __name__ == '__main__':
 		else:
 			usage()
 
-		bags.sort()
+		#sort
+		bags = sort(path, bags) 
+		if len(bags) == 0:
+			print "The bags name have some problem!" 
+			sys.exit()
+
 		for  bag_file in bags:
 			print 'bags: ' + bag_file + '\n'
+
 		print('path: {}'.format(path))
 
 		topic_name = args[0]

@@ -18,6 +18,11 @@ odom1_to_odom2 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 # read messages 
 def readmsg(bags, results_path, topic_name1, topic_name2, trans, rot):
 
+	#store all bag's topic1 odom
+	merge_odom1 = []
+	#store all bag's topic1 odom
+	merge_odom2 = []
+
 	for bag_file in bags:
 
 		#store topic1 odom
@@ -56,9 +61,15 @@ def readmsg(bags, results_path, topic_name1, topic_name2, trans, rot):
 				#insert odom to odom1
 				odom1.append([sec, new_trans[0], new_trans[1], new_trans[2],
 					new_rpy[0], new_rpy[1], new_rpy[2]])
+
+				merge_odom1.append([sec, new_trans[0], new_trans[1], new_trans[2],
+					new_rpy[0], new_rpy[1], new_rpy[2]])
 			elif topic == topic_name2:
 				#insert odom to odom2
-				odom2.append([sec, position.x, position.y, position.z, rpy[0], rpy[1], rpy[2]])
+				odom2.append([sec, position.x, position.y, position.z, rpy[0], 
+					rpy[1], rpy[2]])
+				merge_odom2.append([sec, position.x, position.y, position.z, rpy[0], 
+					rpy[1], rpy[2]])
 
 		#call plot and save image fuction
 		if len(odom1) <= 0:
@@ -66,12 +77,17 @@ def readmsg(bags, results_path, topic_name1, topic_name2, trans, rot):
 		elif len(odom2) <= 0:
 			print(bag_file + 'do not have' + topic_name2)
 		else:
-			plot_odom_and_save_image(odom1, odom2, bag_file, results_path)
+			file_name_prefix = bag_file.split('/')[-1][:-4]
+			plot_odom_and_save_image(odom1, odom2, file_name_prefix, results_path)
 
 		#close bag file
 		bag.close()
 		# print odom1
 		# print odom2
+	#merge all bag
+	file_name_prefix = 'merge'
+	plot_odom_and_save_image(merge_odom1, merge_odom2, file_name_prefix,
+		results_path)
 
 def main(bags, path, topic_name1, topic_name2, trans, rot):
 
@@ -83,6 +99,28 @@ def usage():
 	print("2. rosrun read_bag_plot_in_google_map.py -d /media/test \
 		/sensor/novatel/odom /pose_optimize/velodyne/odom 0 0 0 0 0 0")
 	sys.exit()
+
+def sort(path, bags):
+	results = []
+	bag_name_suffix_num = []
+	bag_name = []
+
+	for bag in bags:
+		bag_name = bag.split('/')[-1]
+		#bag_name_prefix = bag_name.split('_')[0]
+		bag_name_suffix_num.append(int(bag_name.split('_')[1][:-4]))
+	bag_name_suffix_num.sort()
+
+	bag_name_prefix = bag_name.split('_')[0]
+
+	if path[-1] != '/':
+		path = path + '/'
+
+	for i in range(len(bag_name_suffix_num)):
+		results.append(path + bag_name_prefix + '_' +
+			str(bag_name_suffix_num[i]) + '.bag')
+
+	return results
 
 if __name__ == '__main__':
 
@@ -121,6 +159,14 @@ if __name__ == '__main__':
 		else:
 			usage()
 	print('path: {}'.format(path))
+
+	#sort bags
+	bags = sort(path, bags)
+	if len(bags) == 0:
+		print "The bags name have some problem!"
+		sys.exit()
+	for bag in bags:
+		print "Bag: " + bag
 
 	topic_name1 = args[0]
 	topic_name2 = args[1]
