@@ -25,35 +25,61 @@ G = [ 0, 0.03968253968253968, 0.07936507936507936, 0.119047619047619, 0.15873015
 B = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.01587301587301582, 0.09523809523809534, 0.1746031746031744, 0.2539682539682535, 0.333333333333333, 0.412698412698413, 0.4920634920634921, 0.5714285714285712, 0.6507936507936507, 0.7301587301587302, 0.8095238095238093, 0.8888888888888884, 0.9682539682539679, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
             
 # read messages 
-def readmsg(topic_name, bags, path_of_bag):
+def readmsg(topic_name, bags, png_path, html_path):
 	# set arrays to store data
+
+	merge_gps_lat = []
+	merge_gps_lon = []
+
 	gps_lat = []
 	gps_lon = []
-	# mix lat 
-	min_lat = sys.float_info.max
-	# max lat
-	max_lat = sys.float_info.min
 
-	#min lon
-	min_lon = sys.float_info.max
-	#max lon
-	max_lon = sys.float_info.min
+	min_lat = []
+	max_lat = []
 
-	# mix x 
-	min_x = sys.float_info.max
-	# max x
-	max_x = sys.float_info.min
+	min_lon = []
+	max_lon = []
 
-	#min y
-	min_y = sys.float_info.max
-	#max y
-	max_y = sys.float_info.min
+	min_x = []
+	max_x = []
+
+	min_y = []
+	max_y = []
+
+	center_lat = []
+	center_lon = []
+
+	for i in  range(len(bags)):
+		gps_lat.append([])
+		gps_lon.append([])
+
+		# mix lat 
+		min_lat.append(sys.float_info.max)
+		# max lat
+		max_lat.append(sys.float_info.min)
+
+		#min lon
+		min_lon.append(sys.float_info.max)
+		#max lon
+		max_lon.append(sys.float_info.min)
+
+		# mix x 
+		min_x.append(sys.float_info.max)
+		# max x
+		max_x.append(sys.float_info.min)
+
+		#min y
+		min_y.append(sys.float_info.max)
+		#max y
+		max_y.append(sys.float_info.min)
 
 	# set a flag
 	Iter = 0
 	invalid_num = 0
 
+	bag_idx = -1
 	for bag_file in bags:
+		bag_idx += 1
 		# open bag
 		print("Open bag: {}".format(bag_file))
 		bag  = rosbag.Bag(bag_file)
@@ -68,7 +94,8 @@ def readmsg(topic_name, bags, path_of_bag):
 			print("easting:{} northing:{} altitude:{}".format(easting, northing, altitude))
 			#convert easting, northing, altitude to latitude, longitude, altitude
 			point = utm.UTMPoint(easting, northing, altitude, 50, 'S').toMsg()
-			print("latitude:{} longitude:{} altitude:{}".format(point.latitude, point.longitude, point.altitude))
+			print("latitude:{} longitude:{} altitude:{}".format(point.latitude, 
+				point.longitude, point.altitude))
 			print("")
 
 		# transform from GCJ-2 to WGS-84
@@ -77,48 +104,106 @@ def readmsg(topic_name, bags, path_of_bag):
 			  invalid_num+=1
 			  continue
 
-			gps_lat.append(ret[0])
-			gps_lon.append(ret[1])
+			gps_lat[bag_idx].append(ret[0])
+			gps_lon[bag_idx].append(ret[1])
+			
+			merge_gps_lat.append(ret[0])
+			merge_gps_lon.append(ret[1])
 
-			if max_lat < ret[0]:
-				max_lat = ret[0]
-			if min_lat > ret[0]:
-				min_lat = ret[0]
+			if max_lat[bag_idx] < ret[0]:
+				max_lat[bag_idx] = ret[0]
+			if min_lat[bag_idx] > ret[0]:
+				min_lat[bag_idx] = ret[0]
 
-			if max_lon < ret[1]:
-				max_lon = ret[1]
-			if min_lon > ret[1]:
-				min_lon = ret[1]
+			if max_lon[bag_idx] < ret[1]:
+				max_lon[bag_idx] = ret[1]
+			if min_lon[bag_idx] > ret[1]:
+				min_lon[bag_idx] = ret[1]
 
-			if max_x < easting:
-				max_x = easting
-			if min_x > easting:
-				min_x = easting
+			if max_x[bag_idx] < easting:
+				max_x[bag_idx] = easting
+			if min_x[bag_idx] > easting:
+				min_x[bag_idx] = easting
 
-			if max_y < northing:
-				max_y = northing
-			if min_y > northing:
-				min_y = northing
-
+			if max_y[bag_idx] < northing:
+				max_y[bag_idx] = northing
+			if min_y[bag_idx] > northing:
+				min_y[bag_idx] = northing
 
 			Iter += 1
 
 		bag.close()
 
-	print("Read {} points!".format(Iter))
-	print("Read {} invalid points!".format(invalid_num))
+		print("Read {} points!".format(Iter))
+		print("Read {} invalid points!".format(invalid_num))
+
+		# get center point's latitude, longitude
+		center_lat = (max_lat[bag_idx] + min_lat[bag_idx]) / 2.0
+		center_lon = (max_lon[bag_idx] + min_lon[bag_idx]) / 2.0
+		print("center point lat:{} lon:{} ".format(center_lat, center_lon))
+
+		file_name_prefix = bag_file.split('/')[-1][:-4]
+		# plot the data
+		gmap_plot(gps_lat[bag_idx], gps_lon[bag_idx], html_path, file_name_prefix,
+			abs(max_x[bag_idx] - min_x[bag_idx]), abs(max_y[bag_idx] - min_y[bag_idx]),
+			center_lat, center_lon)
+
+		#save png
+		screenshot_html(html_path, png_path, file_name_prefix)
+	
+	if len(bags) <= 1:
+		return
+	#merge all data
+
+	merge_min_lat = sys.float_info.max
+	merge_max_lat = sys.float_info.min
+
+	merge_min_lon = sys.float_info.max
+	merge_max_lon = sys.float_info.min
+
+	merge_min_x = sys.float_info.max
+	merge_max_x = sys.float_info.min
+
+	merge_min_y = sys.float_info.max
+	merge_max_y = sys.float_info.min
+	
+	for i in range(len(min_lat)):
+		if merge_min_lat > min_lat[i]:
+			merge_min_lat = min_lat[i]
+		if merge_max_lat < max_lat[i]:
+			merge_max_lat = max_lat[i]
+
+		if merge_min_lon > min_lon[i]:
+			merge_min_lon = min_lon[i]
+		if merge_max_lon < max_lon[i]:
+			merge_max_lon = max_lon[i]
+
+		if merge_min_x > min_x[i]:
+			merge_min_x = min_x[i]
+		if merge_max_x < max_x[i]:
+			merge_max_x = max_x[i]
+
+		if merge_min_y > min_y[i]:
+			merge_min_y = min_y[i]
+		if merge_max_y < max_y[i]:
+			merge_max_y = max_y[i]
 
 	# get center point's latitude, longitude
-	center_lat = (max_lat + min_lat) / 2.0
-	center_lon = (max_lon + min_lon) / 2.0
-	print("center point lat:{} lon:{} ".format(center_lat, center_lon))
+	merge_center_lat = (merge_max_lat + merge_min_lat) / 2.0
+	merge_center_lon = (merge_max_lon + merge_min_lon) / 2.0
 
+	file_name_prefix = 'merge'
 	# plot the data
-	gmap_plot(gps_lat,gps_lon, path_of_bag, abs(max_x - min_x), abs(max_y - min_y), center_lat, center_lon)
-	screenshot_html(path_of_bag)
+	gmap_plot(merge_gps_lat, merge_gps_lon, html_path, file_name_prefix,
+		abs(merge_max_x - merge_min_x), abs(merge_max_y - merge_min_y),
+		merge_center_lat, merge_center_lon)
+
+	#save png
+	screenshot_html(html_path, png_path, file_name_prefix)
 
 # google map plotting
-def gmap_plot(gps_lat, gps_lon, path, x_range, y_range, cen_lat, cen_lon):
+def gmap_plot(gps_lat, gps_lon, path, html_name, x_range, 
+			y_range, cen_lat, cen_lon):
 
 	print("x_range: {:.2f} meters  y_range_: {:.2f} meters".format(x_range, y_range))
 
@@ -169,12 +254,12 @@ def gmap_plot(gps_lat, gps_lon, path, x_range, y_range, cen_lat, cen_lon):
 	#gmap.plot(gps_lat[1:3], gps_lon[1:3], '#000000', edge_width=10)
 	#gmap.plot(gps_lat[500:], gps_lon[500:], '#ffff00', edge_width=10)
 
-	file_path = path + '/google_map.html'
+	file_path = path + '/' + html_name + '.html'
 	print('Save html to {}'.format(file_path))
 	# Draw
 	gmap.draw(file_path)
 
-def screenshot_html(path):
+def screenshot_html(html_path, png_path, file_name_prefix):
 
 	options = webdriver.ChromeOptions()
 	options.add_argument("--start-maximized")
@@ -185,11 +270,14 @@ def screenshot_html(path):
 	#driver = webdriver.Firefox()
 
 	file_path = 'file://'
-	file_path = file_path +  path + '/google_map.html'
+	file_path = file_path + html_path + '/' + file_name_prefix + '.html'
 	print("Open html file path:{}".format(file_path))
 	driver.get(file_path)
-	time.sleep(10)
-	png_path = path + '/google_map.png'
+
+	#sleep 20 seconds, waiting for call Google Api
+	time.sleep(20)
+
+	png_path = png_path + '/' + file_name_prefix + '.png'
 	driver.save_screenshot(png_path)
 	print('Save png to {}'.format(png_path))
 	driver.quit()
@@ -229,19 +317,17 @@ def get_scale(x_range, y_range):
 	# return idx + 1
 	return idx
 
-def main(bags, path):
-	# choose one topic  
-	topic_name = '/sensor/novatel/odom'
-#topic_name = '/sensor/gnss/odom'
+def main(topic_name, bags, png_path, html_path):
 
-	readmsg(topic_name, bags, path)
+	readmsg(topic_name, bags, png_path, html_path)
 
 def usage():
-	print("1. rosrun read_bag_plot_in_google_map.py -f /media/test.bag")
-	print("2. rosrun read_bag_plot_in_google_map.py -d /media/test")
+	print("1. rosrun read_bag_plot_in_google_map.py -f /media/test.bag /sensor/novatel/odom")
+	print("2. rosrun read_bag_plot_in_google_map.py -d /media/test /sensor/novatel/odom")
+	sys.exit()
 
 if __name__ == '__main__':
-	if len(sys.argv) < 2:
+	if len(sys.argv) < 4:
 		usage()
 	argv = sys.argv[1:]
 	bags = []
@@ -261,8 +347,30 @@ if __name__ == '__main__':
 			path = arg
 		else:
 			usage()
-		# print('bags: {}'.format(bags))
-		print('path: {}'.format(path))
-		# print("{} {} {}".format(len(R), len(G), len(B)))
 
-		main(bags, path)	
+		bags.sort()
+		for  bag_file in bags:
+			print 'bags: ' + bag_file + '\n'
+		print('path: {}'.format(path))
+
+		topic_name = args[0]
+		print "Will Read " + topic_name
+
+		results_png_path = ''
+		results_html_path = ''
+		if path[-1] == '/':
+			results_png_path = path + 'GPS_trajectory/png'
+			results_html_path = path + 'GPS_trajectory/html'
+		else:
+			results_png_path = path + '/GPS_trajectory/png'
+			results_html_path = path + '/GPS_trajectory/html'
+
+		if not os.path.exists(results_png_path):
+			print results_png_path + ' is not exists!\n So we create it!'
+			os.makedirs(results_png_path)
+
+		if not os.path.exists(results_html_path):
+			print results_html_path + ' is not exists!\n So we create it!'
+			os.makedirs(results_html_path)
+
+		main(topic_name, bags, results_png_path, results_html_path)	
