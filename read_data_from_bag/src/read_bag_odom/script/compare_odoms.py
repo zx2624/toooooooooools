@@ -65,6 +65,12 @@ def plot_odom_and_save_image(odom1, odom2, file_name_prefix, path):
 		odom1_temp[2] -= odom1_start[1]
 		odom1_temp[3] -= odom1_start[2]
 
+		# for i in range(4, 7):
+			# if odom1_temp[i] < 0:
+				# odom1_temp[i] += 2 * math.pi
+			# if odom2_temp[i] < 0:
+				# odom2_temp[i] += 2 * math.pi
+
 		#sub first odom
 		odom2_temp[1] -= odom2_start[0]
 		odom2_temp[2] -= odom2_start[1]
