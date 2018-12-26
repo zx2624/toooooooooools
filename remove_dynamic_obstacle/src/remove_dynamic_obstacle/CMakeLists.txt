@@ -4,10 +4,7 @@ project(remove_dynamic_obstacle)
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
 SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 ${CMAKE_CXX_FLAGS}")
-#SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -DNDEBUG -DUSE_GICP ${CMAKE_CXX_FLAGS}")
-#SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall ${CMAKE_CXX_FLAGS}")
-#SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall -DCUDA_NDT ${CMAKE_CXX_FLAGS}")
-#SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall -DCUDA_NDT -Dpandar ${CMAKE_CXX_FLAGS}")
+#SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 -DUSE_2D ${CMAKE_CXX_FLAGS}")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -16,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
 		rosbag
 		sensor_msgs
 		pcl_conversions
+		road_object
 		)
 
 ## System dependencies are found with CMake's conventions
@@ -114,6 +112,7 @@ catkin_package(
 	rosbag 
 	sensor_msgs
 	pcl_conversions
+	road_object
 #  DEPENDS system_lib
 )
 
