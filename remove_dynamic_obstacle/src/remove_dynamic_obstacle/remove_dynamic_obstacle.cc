@@ -31,21 +31,33 @@ const double X_ST = 439311;
 const double Y_ST = 4426691;
 const double Z_ST = 0;
 const double EPS = 0.01;
-const double resolution = 0.3;
-const int min_points_per_leaf = 2;
-const float tolerance = 1;
+
+#ifndef Pandora
+const double resolution = 0.2;
+const int min_points_per_leaf = 1;
+const float tolerance = 1.2;
 const int min_clustering_points_num = 2;
-const int max_clustering_points_num = 10000;
-
-const double min_len = 0.5;
-const double max_len = 6;
-
+const int max_clustering_points_num = 20000;
 
 float norm_a = -0.01371733;
 float norm_b = 0.01460536;
 float norm_c = 0.9997992999999999;
 float norm_d = 1.988692;
+#else
+const double resolution = 0.4;
+const int min_points_per_leaf = 3;
+const float tolerance = 1.2;
+const int min_clustering_points_num = 2;
+const int max_clustering_points_num = 20000;
 
+float norm_a = 0.00632729;
+float norm_b = 0.0117432;
+float norm_c = 0.999911;
+float norm_d = 1.93922;
+#endif
+
+const double min_len = 0.2;
+const double max_len = 8;
 
 struct AABB {
 	AABB () {
@@ -86,7 +98,7 @@ void select_points(pcl::PointCloud<pcl::PointXYZI>::Ptr source,
 			continue;
 		 }
 
-		 if (fabs(p.x) > 30 || fabs(p.y) > 30) {
+		 if (fabs(p.x) > 80 || fabs(p.y) > 80) {
 			 //remove too far points
 			continue;
 		 }

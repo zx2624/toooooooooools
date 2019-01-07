@@ -10,6 +10,7 @@ import time
 import subprocess
 import transforms3d.euler as euler
 from  compare_odoms import plot_odom_and_save_image
+from util import sort
 
 #odom1 to odom2's extrinsic[x, y, z, roll, pitch, yaw]
 odom1_to_odom2 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -94,33 +95,11 @@ def main(bags, path, topic_name1, topic_name2, trans, rot):
 	readmsg(bags, path, topic_name1, topic_name2, trans, rot)
 
 def usage():
-	print("1. rosrun read_bag_plot_in_google_map.py -f /media/test.bag \
+	print("1. rosrun read_bag_odom read_odom_and_compare.py -f /media/test.bag \
 		/sensor/novatel/odom  /pose_optimize/velodyne/odom 0 0 0 0 0 0")
-	print("2. rosrun read_bag_plot_in_google_map.py -d /media/test \
+	print("2. rosrun read_bag_odom read_odom_and_compare.py -d /media/test \
 		/sensor/novatel/odom /pose_optimize/velodyne/odom 0 0 0 0 0 0")
 	sys.exit()
-
-def sort(path, bags):
-	results = []
-	bag_name_suffix_num = []
-	bag_name = []
-
-	for bag in bags:
-		bag_name = bag.split('/')[-1]
-		#bag_name_prefix = bag_name.split('_')[0]
-		bag_name_suffix_num.append(int(bag_name.split('_')[1][:-4]))
-	bag_name_suffix_num.sort()
-
-	bag_name_prefix = bag_name.split('_')[0]
-
-	if path[-1] != '/':
-		path = path + '/'
-
-	for i in range(len(bag_name_suffix_num)):
-		results.append(path + bag_name_prefix + '_' +
-			str(bag_name_suffix_num[i]) + '.bag')
-
-	return results
 
 if __name__ == '__main__':
 

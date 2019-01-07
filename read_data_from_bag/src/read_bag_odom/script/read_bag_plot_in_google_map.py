@@ -7,6 +7,7 @@
 #(4) sudo pip install gmplot
 
 from transform_WGS84_GCJ02 import WGS2GCJ
+from util import sort
 import rosbag
 import sys
 import getopt
@@ -25,7 +26,7 @@ G = [ 0, 0.03968253968253968, 0.07936507936507936, 0.119047619047619, 0.15873015
 B = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.01587301587301582, 0.09523809523809534, 0.1746031746031744, 0.2539682539682535, 0.333333333333333, 0.412698412698413, 0.4920634920634921, 0.5714285714285712, 0.6507936507936507, 0.7301587301587302, 0.8095238095238093, 0.8888888888888884, 0.9682539682539679, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
             
 # read messages 
-def readmsg(topic_name, bags, png_path, html_path):
+def readmsg(topic_name, bags, png_path, html_path, info_path):
 	# set arrays to store data
 
 	merge_gps_lat = []
@@ -78,15 +79,27 @@ def readmsg(topic_name, bags, png_path, html_path):
 	invalid_num = 0
 
 	bag_idx = -1
+
+	bag_info_writer = open(info_path + '/bag_info.txt', "w")
+
 	for bag_file in bags:
 		bag_idx += 1
 		# open bag
 		print("Open bag: {}".format(bag_file))
 		bag  = rosbag.Bag(bag_file)
 
+		start_time = 0.0
+		end_time = 0.0
+		is_first_frame = True
 		# loop over the topic to read evey message
 		for topic, msg, t in bag.read_messages(topics=topic_name):
-			sec         = t.to_sec() 
+			end_time = t.to_sec() 
+
+		#record start time
+			if is_first_frame:
+				is_first_frame = False
+				start_time = end_time
+
 			easting = msg.pose.pose.position.x
 			northing = msg.pose.pose.position.y
 			altitude = msg.pose.pose.position.z
@@ -133,6 +146,9 @@ def readmsg(topic_name, bags, png_path, html_path):
 			Iter += 1
 
 		bag.close()
+		
+		#write bag info
+		bag_info_writer.write(bag_file + ' ' + str(start_time) + ' ' + str(end_time) + '\n');
 
 		print("Read {} points!".format(Iter))
 		print("Read {} invalid points!".format(invalid_num))
@@ -151,6 +167,9 @@ def readmsg(topic_name, bags, png_path, html_path):
 		#save png
 		screenshot_html(html_path, png_path, file_name_prefix)
 	
+	#close writer
+	bag_info_writer.close()
+
 	if len(bags) <= 1:
 		return
 	#merge all data
@@ -317,36 +336,10 @@ def get_scale(x_range, y_range):
 	# return idx + 1
 	return idx
 
-def main(topic_name, bags, png_path, html_path):
-
-	readmsg(topic_name, bags, png_path, html_path)
-
 def usage():
-	print("1. rosrun read_bag_plot_in_google_map.py -f /media/test.bag /sensor/novatel/odom")
-	print("2. rosrun read_bag_plot_in_google_map.py -d /media/test /sensor/novatel/odom")
+	print("1. rosrun read_bag_odom read_bag_plot_in_google_map.py -f /media/test.bag /sensor/novatel/odom")
+	print("2. rosrun read_bag_odom read_bag_plot_in_google_map.py -d /media/test /sensor/novatel/odom")
 	sys.exit()
-
-def sort(path, bags):
-	results = []
-	bag_name_suffix_num = []
-	bag_name = []
-
-	for bag in bags:
-		bag_name = bag.split('/')[-1]
-		#bag_name_prefix = bag_name.split('_')[0]
-		bag_name_suffix_num.append(int(bag_name.split('_')[1][:-4]))
-	bag_name_suffix_num.sort()
-
-	bag_name_prefix = bag_name.split('_')[0]
-
-	if path[-1] != '/':
-		path = path + '/'
-
-	for i in range(len(bag_name_suffix_num)):
-		results.append(path + bag_name_prefix + '_' +
-			str(bag_name_suffix_num[i]) + '.bag')
-
-	return results
 
 if __name__ == '__main__':
 	if len(sys.argv) < 4:
@@ -386,12 +379,16 @@ if __name__ == '__main__':
 
 		results_png_path = ''
 		results_html_path = ''
+		results_info_path = ''
+
 		if path[-1] == '/':
 			results_png_path = path + 'GPS_trajectory/png'
 			results_html_path = path + 'GPS_trajectory/html'
+			results_info_path = path + 'GPS_trajectory'
 		else:
 			results_png_path = path + '/GPS_trajectory/png'
 			results_html_path = path + '/GPS_trajectory/html'
+			results_info_path = path + '/GPS_trajectory'
 
 		if not os.path.exists(results_png_path):
 			print results_png_path + ' is not exists!\n So we create it!'
@@ -401,4 +398,4 @@ if __name__ == '__main__':
 			print results_html_path + ' is not exists!\n So we create it!'
 			os.makedirs(results_html_path)
 
-		main(topic_name, bags, results_png_path, results_html_path)	
+		readmsg(topic_name, bags, results_png_path, results_html_path, results_info_path)	

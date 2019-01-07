@@ -45,6 +45,9 @@ def main():
                 print("> Reading bag file: " + ifile)
             with Bag(ifile, 'r') as ib:
                 for topic, msg, t in ib:
+										#print("[DEBUG] bag: {}  msg time: {}".format(ifile, msg.header.stamp.to_sec()))
+										#just for append chassis odom to bag when the chassis odom's bag's time ie error!
+										#t = msg.header.stamp
                     if t.to_sec() < args.start_stamp :
                         continue
                     elif t.to_sec() > args.end_stamp :
