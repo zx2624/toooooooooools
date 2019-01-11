@@ -1,0 +1,16 @@
+bag_path : /media/horizon_ad/Elements/map_data/BeiJing/ShunYi/20181203/test
+raw_point_topic: /pandora_points
+label_point_topic: /pandora_points/label
+raw_image_topic:
+- /pandora_image0/compressed
+- /pandora_image1/compressed
+- /pandora_image2/compressed
+- /pandora_image3/compressed
+- /pandora_image4/compressed
+
+parsing_image_topic:
+- /pandora_image0/segdet_track/compressed
+- /pandora_image1/segdet_track/compressed
+- /pandora_image2/segdet_track/compressed
+- /pandora_image3/segdet_track/compressed
+- /pandora_image4/segdet_track/compressed

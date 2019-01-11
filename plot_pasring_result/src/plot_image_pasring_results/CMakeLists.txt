@@ -3,6 +3,7 @@ project(plot_image_pasring_results)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
+#add_compile_options(-g)
 add_compile_options(-O3)
 
 ## Find catkin macros and libraries
@@ -10,10 +11,13 @@ add_compile_options(-O3)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED
 		sensor_msgs
+		pcl_conversions
+		mapping_tools
 		rosbag)
 
 ## System dependencies are found with CMake's conventions
-find_package(OpenCV)
+find_package(OpenCV 2.4 REQUIRED)
+find_package(PCL 1.7 REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -118,6 +122,7 @@ include_directories(
 # include
  ${catkin_INCLUDE_DIRS}
  ${OpenCV_INCLUDE_DIRS}
+ ${PCL_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -149,6 +154,8 @@ add_executable(${PROJECT_NAME}_node plot_image_pasring_results.cc)
 target_link_libraries(${PROJECT_NAME}_node
    ${catkin_LIBRARIES}
 	 ${OpenCV_LIBRARIES}
+	 ${PCL_LIBRARIES}
+	 yaml-cpp
  )
 
 #############
