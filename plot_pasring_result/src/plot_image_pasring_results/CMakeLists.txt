@@ -6,6 +6,9 @@ add_compile_options(-std=c++11)
 #add_compile_options(-g)
 add_compile_options(-O3)
 
+add_compile_options(-DVIEW_POINTCLOUD)
+add_compile_options(-DVIEW_IMAGE)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages

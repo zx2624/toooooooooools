@@ -3,7 +3,7 @@
 // FILE:     plot_image_pasring_results.cc
 // ROLE:     TODO (some explanation)
 // CREATED:  2019-01-07 17:20:44
-// MODIFIED: 2019-01-11 09:55:42
+// MODIFIED: 2019-01-11 20:31:46
 #include <stdio.h>
 #include<stdarg.h>
 
@@ -20,6 +20,7 @@
 #include <opencv2/opencv.hpp>
 
 #include <pcl/io/pcd_io.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
 #include <yaml-cpp/yaml.h>
 
@@ -27,14 +28,19 @@
 
 typedef pcl::PointXYZRGBL PointType;
 typedef pcl::Label PointLabel;
+typedef pcl::PointXYZRGB PointRGB;
 
 //class id num
 const int CLASSID_NUM = 16;
 
+//invalid_class_id
+const unsigned char INVALID_CLASS_ID = 255;
+
 //max point num of each frame pointcloud
 const int MAX_POINTS_NUM = 150000;
 
-const float MASK_VALUE = 0.7;
+//const float MASK_VALUE = 0.7;
+const float MASK_VALUE = 0;
 
 const float MIN_DISTANCE = 0.0;
 const float MAX_DISTANCE = 100.0;
@@ -307,7 +313,8 @@ bool project_cloud_to_image_colored(pcl::PointCloud<PointType>::Ptr cloud,
       continue;
     }
 
-		//Judge if the point which has been transformed to camera coordinate is too close or too far.
+		//Judge if the point which has been transformed to camera
+		//coordinate is too close or too far.
 		auto dis = sqrt(pow(yy[0], 2) + pow(yy[1], 2) + pow(yy2_backup, 2));
 		if (dis < MIN_DISTANCE || dis > MAX_DISTANCE) continue;
 
@@ -341,8 +348,13 @@ bool project_cloud_to_image_colored(pcl::PointCloud<PointType>::Ptr cloud,
 		int color_idx = static_cast<int>(64 * (pt3d_dis[k] - MIN_DISTANCE) 
 			/ (MAX_DISTANCE - MIN_DISTANCE));
 
-		circle(image, cv::Point(x, y), 1, cv::Scalar(255 * B[color_idx],
-			255 * G[color_idx], 255 * R[color_idx]), 1);
+		//circle points based on distance
+		//circle(image, cv::Point(x, y), 1, cv::Scalar(255 * B[color_idx],
+			//255 * G[color_idx], 255 * R[color_idx]), 1);
+
+		//circle points based on label
+		circle(image, cv::Point(x, y), 2, cv::Scalar(colorlist[class_id][2],
+			colorlist[class_id][1], colorlist[class_id][0]), 2);
 
     //if(cloud->points[pt3d_idx[k]].r == cloud->points[pt3d_idx[k]].g &&
        //cloud->points[pt3d_idx[k]].r == cloud->points[pt3d_idx[k]].b)
@@ -359,14 +371,15 @@ bool project_cloud_to_image_colored(pcl::PointCloud<PointType>::Ptr cloud,
 std::vector<std::vector<unsigned char> > label_vec_vec(MAX_POINTS_NUM,
 	std::vector<unsigned char>(CLASSID_NUM, 0));
 
-void caculate_label(std::vector<std::vector<unsigned char> > &label_vec_vec,
+void caculate_label(const std::vector<std::vector<unsigned char> > &label_vec_vec,
 	pcl::PointCloud<PointLabel>& point_label) {
 
 	//label_vec_vec.size() must equal to point_label.size()
-	assert(label_vec_vec.size() == point_label.size());
-	for (auto i = 0; i < label_vec_vec.size(); i++) {
+	//assert(label_vec_vec.size() == point_label.size());
+
+	for (auto i = 0; i < point_label.size(); i++) {
 		unsigned char max_num = 0;
-		int idx = 0;
+		unsigned char idx = 0;
 		for (auto j = 0; j < CLASSID_NUM; j++) {
 			if (label_vec_vec[i][j] > max_num) {
 				max_num = label_vec_vec[i][j];
@@ -379,14 +392,25 @@ void caculate_label(std::vector<std::vector<unsigned char> > &label_vec_vec,
 		}
 		else {
 			//This point have no label, we set it to 255 defaultly.
-			point_label.points[i].label = 255;
+			point_label.points[i].label = INVALID_CLASS_ID;
 		}
 	}
+
 }
+
 void plot_parsing_result(const Config &config, const CameraCalibration camera_calibration[]) {
+	//vector of bag file
 	std::vector<std::string> vec_bag_files;
 	//get all bag files at bag_path
 	horizon::mapping::getAllBagFilesPath(config.bag_path, vec_bag_files);
+
+#ifdef VIEW_POINTCLOUD
+	pcl::visualization::PCLVisualizer viewer("viewer");
+	viewer.addCoordinateSystem(3.0 ,"coor");
+	viewer.initCameraParameters();
+	viewer.setCameraPosition(0.0, 0.0, 100.0, 0.0, -1.0, 0.0);
+	//viewer.setFullScreen(true);
+#endif
 	for (auto &bag_file:vec_bag_files) {
 		rosbag::Bag bag;
 		bag.open(bag_file, rosbag::bagmode::Read);
@@ -437,6 +461,7 @@ void plot_parsing_result(const Config &config, const CameraCalibration camera_ca
 
 		//raw point cloud
 		pcl::PointCloud<PointType>::Ptr source(new pcl::PointCloud<PointType>);
+		pcl::PointCloud<PointRGB>::Ptr source_rgb(new pcl::PointCloud<PointRGB>);
 		//define point label point cloud vector
 		std::vector<pcl::PointCloud<PointLabel>> label_point_vec(points_view.size());
 		
@@ -459,7 +484,8 @@ void plot_parsing_result(const Config &config, const CameraCalibration camera_ca
 				<< point_ptr->header.stamp.toSec();
 
 			for (auto i = 0; i < image_num; i++) {
-				auto raw_image_ptr = raw_images_it_vec[i]->instantiate<sensor_msgs::CompressedImage>();
+				auto raw_image_ptr = 
+					raw_images_it_vec[i]->instantiate<sensor_msgs::CompressedImage>();
 				auto parsing_image_ptr = 
 					parsing_images_it_vec[i]->instantiate<sensor_msgs::CompressedImage>();
 
@@ -472,11 +498,13 @@ void plot_parsing_result(const Config &config, const CameraCalibration camera_ca
 			}
 			std::cout << std::endl;
 			
-			//std::vector<std::vector<unsigned char> > label_vec_vec(source->size(), 
-				//std::vector<unsigned char>(CLASSID_NUM, 0));
-			//label_vec_vec.clear();
-			label_vec_vec.resize(source->size(), 
-				std::vector<unsigned char>(CLASSID_NUM, 0));
+			//set to zero
+			//memset(&label_vec_vec[0][0], 0, sizeof(MAX_POINTS_NUM * CLASSID_NUM));
+			for (auto i = 0; i < MAX_POINTS_NUM; i++) {
+				for (auto j = 0; j < CLASSID_NUM; j++) {
+					label_vec_vec[i][j] = 0;
+				}
+			}
 
 			label_point_vec[frame_num].resize(source->size());
 
@@ -490,7 +518,7 @@ void plot_parsing_result(const Config &config, const CameraCalibration camera_ca
 
 						for (auto k = 0; k < raw_images_color_vec[idx].channels(); k++) {
 							raw_color[k] =
-								static_cast<uchar>(std::min(static_cast<uchar>(color[k] * MASK_VALUE + 
+								static_cast<uchar>(std::min(static_cast<uchar>(color[ 2 - k] * MASK_VALUE + 
 									raw_color[k] * (1 - MASK_VALUE)), uchar(255)));
 						}
 						raw_images_color_vec[idx].at<cv::Vec3b>(i, j) = raw_color;
@@ -552,14 +580,52 @@ void plot_parsing_result(const Config &config, const CameraCalibration camera_ca
 			//TODO
 			caculate_label(label_vec_vec, label_point_vec[frame_num]);
 
-			//convert to ros cloud
-
-
+#ifdef VIEW_IMAGE
 			//cv::imshow("pasring", raw_images_color_vec[0]);
 			//cv::waitKey(1);
 
 			ShowManyImages("image", 5, raw_images_color_vec[0], raw_images_color_vec[1],
 				raw_images_color_vec[2], raw_images_color_vec[3], raw_images_color_vec[4]);
+#endif
+
+#ifdef VIEW_POINTCLOUD
+			PointRGB temp;
+			source_rgb->clear();
+			source_rgb->resize(source->points.size());
+			for(auto i = 0; i < source->points.size(); i++) {
+				auto p = source->points[i];
+				temp.x = p.x; 
+				temp.y = p.y; 
+				temp.z = p.z; 
+
+				auto class_id = 
+					static_cast<unsigned char>(label_point_vec[frame_num].points[i].label);
+				if (class_id == INVALID_CLASS_ID) continue;
+
+				//TODO for test
+				//if (class_id == 1) {
+					//temp.r = colorlist[class_id][0];
+					//temp.g = colorlist[class_id][1];
+					//temp.b = colorlist[class_id][2];
+				//}
+				//else {
+					//temp.r = 255;
+					//temp.g = 255;
+					//temp.b = 255;
+				//}
+
+				temp.r = colorlist[class_id][0];
+				temp.g = colorlist[class_id][1];
+				temp.b = colorlist[class_id][2];
+
+				source_rgb->points[i] = temp;
+			}
+			viewer.removePointCloud("cloud");
+			viewer.addPointCloud(source_rgb, "cloud");
+			viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE,
+				3, "cloud");
+			viewer.spinOnce(10);
+#endif
 
 			point_it++;
 			frame_num++;
