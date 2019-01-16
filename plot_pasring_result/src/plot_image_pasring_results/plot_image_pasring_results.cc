@@ -3,9 +3,10 @@
 // FILE:     plot_image_pasring_results.cc
 // ROLE:     TODO (some explanation)
 // CREATED:  2019-01-07 17:20:44
-// MODIFIED: 2019-01-11 20:31:46
+// MODIFIED: 2019-01-15 18:05:06
 #include <stdio.h>
-#include<stdarg.h>
+#include <stdarg.h>
+#include <time.h>
 
 #include <iostream>
 #include <memory>
@@ -14,7 +15,7 @@
 #include <rosbag/view.h>
 #include <sensor_msgs/CompressedImage.h>
 #include <sensor_msgs/PointCloud2.h>
-#include <std_msgs/Time.h>
+#include <std_msgs/Header.h>
 #include <pcl_conversions/pcl_conversions.h>
 
 #include <opencv2/opencv.hpp>
@@ -416,17 +417,32 @@ void plot_parsing_result(const Config &config, const CameraCalibration camera_ca
 		bag.open(bag_file, rosbag::bagmode::Read);
 
 		rosbag::View points_view(bag, rosbag::TopicQuery(config.raw_point_topic));
-		auto point_it = points_view.begin();
+		//pointcloud iterator vector
+		std::vector<rosbag::View::iterator> point_it_vec(points_view.size());
+
+		//Prepare for mutilthread to read rosbag data.
+		rosbag::View::iterator points_view_iter = points_view.begin();
+		{
+			auto idx = 0;
+			for (;points_view_iter != points_view.end(); points_view_iter++) {
+				point_it_vec[idx++] = points_view_iter;
+			}
+		}
 
 		int image_num = config.raw_image_topic_vec.size();
-		int frame_num = 0;
+		//max frame for lidar and five camera can have common
+		int max_common_frame = std::numeric_limits<int>::max(); 
+
+		if (max_common_frame > points_view.size()) {
+			max_common_frame = points_view.size();
+		}
 
 		std::vector<rosbag::View> raw_images_view_vec(image_num);
 		std::vector<rosbag::View> parsing_images_view_vec(image_num);
 
-		//vector iterator
-		std::vector<rosbag::View::iterator> raw_images_it_vec(image_num);
-		std::vector<rosbag::View::iterator> parsing_images_it_vec(image_num);
+		//vector vector iterator
+		std::vector<std::vector<rosbag::View::iterator>> raw_images_it_vec_vec(image_num);
+		std::vector<std::vector<rosbag::View::iterator>> parsing_images_it_vec_vec(image_num);
 
 		for (auto i = 0; i < image_num; i++) {
 			raw_images_view_vec[i].addQuery(bag, 
@@ -439,64 +455,101 @@ void plot_parsing_result(const Config &config, const CameraCalibration camera_ca
 			//assert(points_view.size() == raw_images_view_vec[i].size());
 			//assert(points_view.size() == parsing_images_view_vec[i].size());
 
-			raw_images_it_vec[i] = raw_images_view_vec[i].begin();
-			parsing_images_it_vec[i] = parsing_images_view_vec[i].begin();
+			assert(raw_images_view_vec[i].size() == parsing_images_view_vec[i].size());
+
+			if (max_common_frame > raw_images_view_vec[i].size()) { 
+				max_common_frame = raw_images_view_vec[i].size();
+			}
+			
+			raw_images_it_vec_vec[i].resize(raw_images_view_vec[i].size()); 
+			parsing_images_it_vec_vec[i].resize(parsing_images_view_vec[i].size()); 
+
+			{
+				auto idx = 0;
+				for (auto it = raw_images_view_vec[i].begin();
+						it != raw_images_view_vec[i].end(); it++) {
+					raw_images_it_vec_vec[i][idx++] = it;
+				}
+			}
+
+			{
+				auto idx = 0;
+				for (auto it = parsing_images_view_vec[i].begin();
+						it != parsing_images_view_vec[i].end(); it++) {
+					parsing_images_it_vec_vec[i][idx++] = it;
+				}
+			}
+			
 		}
 
+#ifdef OpenMP
+		omp_lock_t lock;
+		omp_init_lock(&lock);
+		cout << "max thread num: " << omp_get_max_threads() << endl;
+#endif
 
-		//for test
-		//TODO because the /pandora_image4/segdet_track/compressed have 48 frame extraly.
-		
-		//for (auto i = 0; i < 48; i++ ) {
-			//(parsing_images_it_vec[4])++;
-		//}
-		//for (auto i = 0; i < 3300; i++) {
-			//point_it++;
-			//frame_num++;
-			//for(auto j = 0; j < image_num; j++) {
-				//(raw_images_it_vec[j])++;
-				//(parsing_images_it_vec[j])++;
-			//}
-		//}
-
-		//raw point cloud
-		pcl::PointCloud<PointType>::Ptr source(new pcl::PointCloud<PointType>);
-		pcl::PointCloud<PointRGB>::Ptr source_rgb(new pcl::PointCloud<PointRGB>);
 		//define point label point cloud vector
-		std::vector<pcl::PointCloud<PointLabel>> label_point_vec(points_view.size());
+		std::vector<pcl::PointCloud<PointLabel>> label_point_vec(max_common_frame);
 		
 		//pointcloud timestamp vec
-		std::vector<std_msgs::Time> label_point_stamp(points_view.size());
+		std::vector<std_msgs::Header> label_point_stamp(max_common_frame);
 
-		std::vector<cv::Mat> raw_images_color_vec(image_num);
-		std::vector<cv::Mat> parsing_images_color_vec(image_num);
+#ifdef OpenMP
+#ifndef VIEW_IMAGE
+#ifndef VIEW_POINTCLOUD
+	#pragma omp parallel for
+#endif
+#endif
+#endif
+		for (auto frame_num = 0; frame_num < max_common_frame; frame_num++) {
+			pcl::PointCloud<PointType>::Ptr source(new pcl::PointCloud<PointType>);
+			//raw point cloud
+			pcl::PointCloud<PointRGB>::Ptr source_rgb(new pcl::PointCloud<PointRGB>);
 
-		bool have_finished = false;
-		while (point_it != points_view.end() && !have_finished) {
-			auto point_ptr = point_it->instantiate<sensor_msgs::PointCloud2>();
+			std::vector<cv::Mat> raw_images_color_vec(max_common_frame);
+			std::vector<cv::Mat> parsing_images_color_vec(max_common_frame);
+
+#ifdef OpenMP
+			omp_set_lock(&lock);
+#endif
+			auto point_ptr 
+				= point_it_vec[frame_num]->instantiate<sensor_msgs::PointCloud2>();
 			pcl::fromROSMsg(*point_ptr, *source);
+#ifdef OpenMP
+			omp_unset_lock(&lock);
+#endif
 
 			//set stamp
-			label_point_stamp[frame_num].data = point_ptr->header.stamp;
+			label_point_stamp[frame_num] = point_ptr->header;
 
-			std::cout.precision(2);
-			std::cout << "[point, img0, img1, img2, img3, img4]: " << std::fixed
-				<< point_ptr->header.stamp.toSec();
+			printf("[pointcloud time]: %.2f\n", point_ptr->header.stamp.toSec());
 
 			for (auto i = 0; i < image_num; i++) {
+#ifdef OpenMP
+				omp_set_lock(&lock);
+#endif
 				auto raw_image_ptr = 
-					raw_images_it_vec[i]->instantiate<sensor_msgs::CompressedImage>();
+					raw_images_it_vec_vec[i][frame_num]->instantiate<sensor_msgs::CompressedImage>();
+#ifdef OpenMP
+				omp_unset_lock(&lock); 
+#endif
+
+#ifdef OpenMP
+				omp_set_lock(&lock);
+#endif
 				auto parsing_image_ptr = 
-					parsing_images_it_vec[i]->instantiate<sensor_msgs::CompressedImage>();
+					parsing_images_it_vec_vec[i][frame_num]->instantiate<sensor_msgs::CompressedImage>();
+#ifdef OpenMP
+				omp_unset_lock(&lock);
+#endif
 
 				//convert from ros msg
 				raw_images_color_vec[i] = cv::imdecode(cv::Mat(raw_image_ptr->data), 1);
 				parsing_images_color_vec[i] = cv::imdecode(cv::Mat(parsing_image_ptr->data), 1);
 		
-				std::cout << " " << raw_image_ptr->header.stamp.toSec() - 
-					point_ptr->header.stamp.toSec();
+				//std::cout << " " << raw_image_ptr->header.stamp.toSec() - 
+					//point_ptr->header.stamp.toSec();
 			}
-			std::cout << std::endl;
 			
 			//set to zero
 			//memset(&label_vec_vec[0][0], 0, sizeof(MAX_POINTS_NUM * CLASSID_NUM));
@@ -577,7 +630,6 @@ void plot_parsing_result(const Config &config, const CameraCalibration camera_ca
 			}
 
 			//choose the max num class id of each point of the source
-			//TODO
 			caculate_label(label_vec_vec, label_point_vec[frame_num]);
 
 #ifdef VIEW_IMAGE
@@ -590,7 +642,6 @@ void plot_parsing_result(const Config &config, const CameraCalibration camera_ca
 
 #ifdef VIEW_POINTCLOUD
 			PointRGB temp;
-			source_rgb->clear();
 			source_rgb->resize(source->points.size());
 			for(auto i = 0; i < source->points.size(); i++) {
 				auto p = source->points[i];
@@ -626,31 +677,19 @@ void plot_parsing_result(const Config &config, const CameraCalibration camera_ca
 				3, "cloud");
 			viewer.spinOnce(10);
 #endif
-
-			point_it++;
-			frame_num++;
-
-			for(auto j = 0; j < image_num; j++) {
-				raw_images_it_vec[j]++;
-				parsing_images_it_vec[j]++;
-				if (parsing_images_it_vec[j] == parsing_images_view_vec[j].end()) {
-					have_finished = true;
-					break;
-				}
-			}
 		}
-
 		bag.close();
 
 		//append label_point_vec to bag
 		bag.open(bag_file, rosbag::bagmode::Append);
 		for (auto i = 0; i < label_point_vec.size(); i++) {
+		if(label_point_vec[i].size() == 0) continue;
 		sensor_msgs::PointCloud2 ros_point;
 		//convert to ros format
 		pcl::toROSMsg(label_point_vec[i], ros_point);
-			bag.write(config.label_point_topic, label_point_stamp[i].data, ros_point);
+		ros_point.header = label_point_stamp[i];
+			bag.write(config.label_point_topic, label_point_stamp[i].stamp, ros_point);
 		}
-
 		bag.close();
 	}
 }

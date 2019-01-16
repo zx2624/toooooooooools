@@ -3,7 +3,8 @@ project(colormap)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 -DPandora ${CMAKE_CXX_FLAGS}")
+#SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 -DPandora ${CMAKE_CXX_FLAGS}")
+SET(CMAKE_CXX_FLAGS "-std=c++11 -g -DPandora ${CMAKE_CXX_FLAGS}")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -136,6 +137,7 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
  add_executable(${PROJECT_NAME}_node colormap.cc)
+ add_executable(${PROJECT_NAME}_label_node labelmap.cc)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -149,6 +151,10 @@ include_directories(
 
 ## Specify libraries to link a library or executable target against
  target_link_libraries(${PROJECT_NAME}_node
+   ${catkin_LIBRARIES} ${PCL_LIBRARIES} 
+ )
+
+ target_link_libraries(${PROJECT_NAME}_label_node
    ${catkin_LIBRARIES} ${PCL_LIBRARIES} 
  )
 

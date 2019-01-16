@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(plot_image_pasring_results)
 
-## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
-#add_compile_options(-g)
-add_compile_options(-O3)
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 ${CMAKE_CXX_FLAGS}")
 
-add_compile_options(-DVIEW_POINTCLOUD)
-add_compile_options(-DVIEW_IMAGE)
+#For debug
+#SET(CMAKE_CXX_FLAGS "-std=c++11 -g ${CMAKE_CXX_FLAGS}")
+
+#For Visualization
+#SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 -DVIEW_IMAGE -DVIEW_POINTCLOUD ${CMAKE_CXX_FLAGS}")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -22,6 +22,13 @@ find_package(catkin REQUIRED
 find_package(OpenCV 2.4 REQUIRED)
 find_package(PCL 1.7 REQUIRED)
 
+#For mutil thread
+#find_package(OpenMP)
+#if (OPENMP_FOUND)
+	#add_compile_options(-DOpenMP)
+	#set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+	#set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+#endif()
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
