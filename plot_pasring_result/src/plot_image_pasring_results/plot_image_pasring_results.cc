@@ -3,7 +3,7 @@
 // FILE:     plot_image_pasring_results.cc
 // ROLE:     TODO (some explanation)
 // CREATED:  2019-01-07 17:20:44
-// MODIFIED: 2019-01-15 18:05:06
+// MODIFIED: 2019-01-18 10:37:26
 #include <stdio.h>
 #include <stdarg.h>
 #include <time.h>
@@ -22,10 +22,14 @@
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/common/transforms.h>
 
 #include <yaml-cpp/yaml.h>
 
 #include <mapping_tools/mapping_tools.h>
+
+#include <glog/logging.h>
+#include <gflags/gflags.h>
 
 typedef pcl::PointXYZRGBL PointType;
 typedef pcl::Label PointLabel;
@@ -73,10 +77,40 @@ const int colorlist[24][3] = {
     {0, 0, 230}
   };
 
+enum HobotLabels {
+	road = 0,
+	traffic_lane = 1,
+	stop_line = 2,
+	crosswalk_line = 3,
+	road_arrow = 4,
+	lane_marking = 5,
+	guide_line = 6,
+	speed_bump = 7,
+	traffic_sign = 8,
+	traffic_board = 9,
+	traffic_light = 10,
+	pole = 11,
+	building = 12,
+	sidewalk = 13,
+	moving_object = 14,
+	background = 15
+};
+
 //colormap HSV
 static const float R[] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.9523809523809526f, 0.8571428571428568f, 0.7619047619047614f, 0.6666666666666665f, 0.5714285714285716f, 0.4761904761904763f, 0.3809523809523805f, 0.2857142857142856f, 0.1904761904761907f, 0.0952380952380949f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.09523809523809557f, 0.1904761904761905f, 0.2857142857142854f, 0.3809523809523809f, 0.4761904761904765f, 0.5714285714285714f, 0.6666666666666663f, 0.7619047619047619f, 0.8571428571428574f, 0.9523809523809523f, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 static const float G[] = { 0, 0.09523809523809523f, 0.1904761904761905f, 0.2857142857142857f, 0.3809523809523809f, 0.4761904761904762f, 0.5714285714285714f, 0.6666666666666666f, 0.7619047619047619f, 0.8571428571428571f, 0.9523809523809523f, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.9523809523809526f, 0.8571428571428577f, 0.7619047619047619f, 0.6666666666666665f, 0.5714285714285716f, 0.4761904761904767f, 0.3809523809523814f, 0.2857142857142856f, 0.1904761904761907f, 0.09523809523809579f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static const float B[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.09523809523809523f, 0.1904761904761905f, 0.2857142857142857f, 0.3809523809523809f, 0.4761904761904762f, 0.5714285714285714f, 0.6666666666666666f, 0.7619047619047619f, 0.8571428571428571f, 0.9523809523809523f, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.9523809523809526f, 0.8571428571428577f, 0.7619047619047614f, 0.6666666666666665f, 0.5714285714285716f, 0.4761904761904767f, 0.3809523809523805f, 0.2857142857142856f, 0.1904761904761907f, 0.09523809523809579f, 0};
+
+Eigen::Matrix4d getMatrix4dFromMsg(nav_msgs::Odometry msg) {
+	Eigen::Quaterniond q(msg.pose.pose.orientation.w, msg.pose.pose.orientation.x, 
+		msg.pose.pose.orientation.y, msg.pose.pose.orientation.z);
+	Eigen::Matrix4d pose = Eigen::Matrix4d::Identity();
+	pose.block<3, 3>(0, 0) = q.toRotationMatrix();
+	pose(0, 3) = msg.pose.pose.position.x;
+	pose(1, 3) = msg.pose.pose.position.y;
+	pose(2, 3) = msg.pose.pose.position.z;
+	return pose;
+}
   
 class CameraCalibration {
  public:
@@ -94,9 +128,12 @@ class Config {
 
 	std::string raw_point_topic;
 	std::string label_point_topic;
+	std::string lidar_odom_topic;
 
 	std::vector<std::string> raw_image_topic_vec;
 	std::vector<std::string> parsing_image_topic_vec;
+
+	int images_num_for_pointcloud;
 };
 
 void convert_cv_vec(const double array[], cv::Mat &rvec, cv::Mat &tvec) {
@@ -140,6 +177,44 @@ bool convert_inv_extrinsics(const double extrinsics_src[],
 	extrinsics_inv[3] = -rr[0] * tt[0] - rr[3] * tt[1] - rr[6] * tt[2];
 	extrinsics_inv[4] = -rr[1] * tt[0] - rr[4] * tt[1] - rr[7] * tt[2];
 	extrinsics_inv[5] = -rr[2] * tt[0] - rr[5] * tt[1] - rr[8] * tt[2];
+}
+
+void get_intrinsic_extrinsci_dis(const CameraCalibration &camera_calibration, 
+		double intrinsics[], double distortion[], double extrinsics[]) {
+	//caculate camera_calibration to adapt to project_cloud_to_image_colored function
+	intrinsics[0] = camera_calibration.cameraK.at<double>(0, 0);
+	intrinsics[1] = camera_calibration.cameraK.at<double>(1, 1);
+	intrinsics[2] = camera_calibration.cameraK.at<double>(0, 2);
+	intrinsics[3] = camera_calibration.cameraK.at<double>(1, 2);
+
+	//because the images hase been undistored
+	distortion[0] = 0;
+	distortion[1] = 0;
+	distortion[2] = 0;
+	distortion[3] = 0;
+	distortion[4] = 0;
+
+	Eigen::Quaternion<double> rotation(
+		camera_calibration.cameraR[0],
+		camera_calibration.cameraR[1],
+		camera_calibration.cameraR[2],
+		camera_calibration.cameraR[3]);
+
+	Eigen::AngleAxis<double> aa(rotation);
+	//let avec have axis and angle
+	Eigen::Vector3d avec = aa.axis() * aa.angle();
+
+	//store axis angle
+	extrinsics[0] = avec[0];
+	extrinsics[1] = avec[1];
+	extrinsics[2] = avec[2];
+
+	//store translation
+	extrinsics[3] = camera_calibration.cameraT[0];
+	extrinsics[4] = camera_calibration.cameraT[1];
+	extrinsics[5] = camera_calibration.cameraT[2];
+
+	convert_inv_extrinsics(extrinsics, extrinsics);
 }
 
 void ShowManyImages(std::string title, int nArgs, ...) {
@@ -250,10 +325,11 @@ void ShowManyImages(std::string title, int nArgs, ...) {
 
 bool project_cloud_to_image_colored(pcl::PointCloud<PointType>::Ptr cloud,
 														//pcl::PointCloud<PointLabel>& label_cloud,
-														std::vector<std::vector<unsigned char>>& label_vec_vec,
+														unsigned int* label_vec_vec,
                             const double intrinsic[], const double distortion[],
                             const double extrinsic[],
-                            cv::Mat &image, const cv::Mat &parsing_image) {
+                            cv::Mat &image, const cv::Mat &parsing_image,
+														const std::deque<bool>& label_mask, bool using_mask) {
   if (cloud->empty() || image.empty()) {
     return false;
   }
@@ -289,6 +365,9 @@ bool project_cloud_to_image_colored(pcl::PointCloud<PointType>::Ptr cloud,
   float max_h = (1 + ratio) * height;
 
   for (int i = 0; i < point_count; ++i) {
+		//if the mask is false, then continue
+		if (using_mask && label_mask[i] == false) continue;
+
     xx[0] = cloud->points[i].x;
     xx[1] = cloud->points[i].y;
     xx[2] = cloud->points[i].z;
@@ -340,39 +419,45 @@ bool project_cloud_to_image_colored(pcl::PointCloud<PointType>::Ptr cloud,
 		//get id
 		auto class_id  = parsing_image.at<cv::Vec3b>(y, x)[0];
 
+		//filter those points whose label is moving_object
+		
+		if (using_mask && static_cast<HobotLabels>(class_id) == moving_object) continue;
+		//if (static_cast<HobotLabels>(class_id) == moving_object) continue;
+
 		//Let the class_id' value ++
-		label_vec_vec[pt3d_idx[k]][class_id]++;
+		//label_vec_vec[pt3d_idx[k]][class_id]++;
+		label_vec_vec[pt3d_idx[k] * CLASSID_NUM + class_id]++;
 
-		//draw circle at pixel that point can be projected into
+		if (using_mask) {
 
-		auto point = cloud->points[pt3d_idx[k]];
-		int color_idx = static_cast<int>(64 * (pt3d_dis[k] - MIN_DISTANCE) 
-			/ (MAX_DISTANCE - MIN_DISTANCE));
+			if (static_cast<HobotLabels>(class_id) == moving_object) continue;
+			//draw circle at pixel that point can be projected into
+			auto point = cloud->points[pt3d_idx[k]];
+			int color_idx = static_cast<int>(64 * (pt3d_dis[k] - MIN_DISTANCE) 
+				/ (MAX_DISTANCE - MIN_DISTANCE));
 
-		//circle points based on distance
-		//circle(image, cv::Point(x, y), 1, cv::Scalar(255 * B[color_idx],
-			//255 * G[color_idx], 255 * R[color_idx]), 1);
+			//circle points based on distance
+			//circle(image, cv::Point(x, y), 1, cv::Scalar(255 * B[color_idx],
+				//255 * G[color_idx], 255 * R[color_idx]), 1);
 
-		//circle points based on label
-		circle(image, cv::Point(x, y), 2, cv::Scalar(colorlist[class_id][2],
-			colorlist[class_id][1], colorlist[class_id][0]), 2);
+			//circle points based on label
+			circle(image, cv::Point(x, y), 2, cv::Scalar(colorlist[class_id][2],
+				colorlist[class_id][1], colorlist[class_id][0]), 2);
 
-    //if(cloud->points[pt3d_idx[k]].r == cloud->points[pt3d_idx[k]].g &&
-       //cloud->points[pt3d_idx[k]].r == cloud->points[pt3d_idx[k]].b)
-    //{
-      //cloud->points[pt3d_idx[k]].r = image.at<cv::Vec3b>(y, x)[2];
-      //cloud->points[pt3d_idx[k]].g = image.at<cv::Vec3b>(y, x)[1];
-      //cloud->points[pt3d_idx[k]].b = image.at<cv::Vec3b>(y, x)[0];
-    //}
+			//if(cloud->points[pt3d_idx[k]].r == cloud->points[pt3d_idx[k]].g &&
+				 //cloud->points[pt3d_idx[k]].r == cloud->points[pt3d_idx[k]].b)
+			//{
+				//cloud->points[pt3d_idx[k]].r = image.at<cv::Vec3b>(y, x)[2];
+				//cloud->points[pt3d_idx[k]].g = image.at<cv::Vec3b>(y, x)[1];
+				//cloud->points[pt3d_idx[k]].b = image.at<cv::Vec3b>(y, x)[0];
+			//}
+		}
 
   }
   return true;
 }
 
-std::vector<std::vector<unsigned char> > label_vec_vec(MAX_POINTS_NUM,
-	std::vector<unsigned char>(CLASSID_NUM, 0));
-
-void caculate_label(const std::vector<std::vector<unsigned char> > &label_vec_vec,
+void caculate_label(unsigned int* label_vec_vec,
 	pcl::PointCloud<PointLabel>& point_label) {
 
 	//label_vec_vec.size() must equal to point_label.size()
@@ -382,8 +467,10 @@ void caculate_label(const std::vector<std::vector<unsigned char> > &label_vec_ve
 		unsigned char max_num = 0;
 		unsigned char idx = 0;
 		for (auto j = 0; j < CLASSID_NUM; j++) {
-			if (label_vec_vec[i][j] > max_num) {
-				max_num = label_vec_vec[i][j];
+			//if (label_vec_vec[i][j] > max_num) {
+			if (label_vec_vec[i * CLASSID_NUM + j] > max_num) {
+				//max_num = label_vec_vec[i][j];
+				max_num = label_vec_vec[i * CLASSID_NUM + j];
 				idx = j;
 			}
 		}
@@ -396,14 +483,39 @@ void caculate_label(const std::vector<std::vector<unsigned char> > &label_vec_ve
 			point_label.points[i].label = INVALID_CLASS_ID;
 		}
 	}
-
 }
 
-void plot_parsing_result(const Config &config, const CameraCalibration camera_calibration[]) {
+void caculate_label_mask(unsigned int* label_vec_vec,
+	std::deque<bool>& label_mask) {
+	for (auto i = 0; i < label_mask.size(); i++) {
+		unsigned char max_num = 0;
+		unsigned char idx = 0;
+		for (auto j = 0; j < CLASSID_NUM; j++) {
+			//if (label_vec_vec[i][j] > max_num) {
+			if (label_vec_vec[i * CLASSID_NUM + j] > max_num) {
+				//max_num = label_vec_vec[i][j];
+				max_num = label_vec_vec[i * CLASSID_NUM + j];
+				idx = j;
+			}
+		}
+		auto label_enum = static_cast<HobotLabels>(idx);
+
+		//if the label is moving_object , then set is's mask to false
+		if (max_num > 0 && label_enum == moving_object) {
+			//set to the label whose amount is maximum.
+			label_mask[i] = false;
+		}
+	}
+}
+
+void plot_parsing_result_from_mutilframe(const Config &config, 
+	const CameraCalibration camera_calibration[]) {
+	const double EPS = 0.01;
 	//vector of bag file
 	std::vector<std::string> vec_bag_files;
 	//get all bag files at bag_path
 	horizon::mapping::getAllBagFilesPath(config.bag_path, vec_bag_files);
+
 
 #ifdef VIEW_POINTCLOUD
 	pcl::visualization::PCLVisualizer viewer("viewer");
@@ -412,20 +524,50 @@ void plot_parsing_result(const Config &config, const CameraCalibration camera_ca
 	viewer.setCameraPosition(0.0, 0.0, 100.0, 0.0, -1.0, 0.0);
 	//viewer.setFullScreen(true);
 #endif
+
 	for (auto &bag_file:vec_bag_files) {
 		rosbag::Bag bag;
 		bag.open(bag_file, rosbag::bagmode::Read);
 
 		rosbag::View points_view(bag, rosbag::TopicQuery(config.raw_point_topic));
+		rosbag::View odoms_view(bag, rosbag::TopicQuery(config.lidar_odom_topic));
+
 		//pointcloud iterator vector
 		std::vector<rosbag::View::iterator> point_it_vec(points_view.size());
 
+		//odom iterator vector
+		std::vector<rosbag::View::iterator> odom_it_vec(odoms_view.size());
+
 		//Prepare for mutilthread to read rosbag data.
 		rosbag::View::iterator points_view_iter = points_view.begin();
+		rosbag::View::iterator odom_view_iter = odoms_view.begin();
+
+		//align pointcloud and odom
+		while(points_view_iter != points_view.end() &&
+			odom_view_iter != odoms_view.end()) {
+			auto pt = points_view_iter->instantiate<sensor_msgs::PointCloud2>();
+			auto odom = odom_view_iter->instantiate<nav_msgs::Odometry>();
+
+			double pt_stamp = pt->header.stamp.toSec();
+			double odom_stamp = odom->header.stamp.toSec();
+			if (pt_stamp - odom_stamp > EPS) {
+				odom_view_iter++;
+			}
+			else if(odom_stamp - pt_stamp > EPS) {
+				points_view_iter++;
+			}
+			else break;
+		}
+		
 		{
 			auto idx = 0;
 			for (;points_view_iter != points_view.end(); points_view_iter++) {
 				point_it_vec[idx++] = points_view_iter;
+			}
+
+			idx = 0;
+			for (;odom_view_iter != odoms_view.end(); odom_view_iter++) {
+				odom_it_vec[idx++] = odom_view_iter;
 			}
 		}
 
@@ -433,8 +575,14 @@ void plot_parsing_result(const Config &config, const CameraCalibration camera_ca
 		//max frame for lidar and five camera can have common
 		int max_common_frame = std::numeric_limits<int>::max(); 
 
-		if (max_common_frame > points_view.size()) {
-			max_common_frame = points_view.size();
+		if (max_common_frame > point_it_vec.size()) {
+			max_common_frame = point_it_vec.size();
+		}
+
+		//TODO We assume that when we have aligned the odom and pointcloud , 
+		//then that each odom pairs to each pointcloud 
+		if (max_common_frame > odom_it_vec.size()) {
+			max_common_frame = odom_it_vec.size();
 		}
 
 		std::vector<rosbag::View> raw_images_view_vec(image_num);
@@ -482,163 +630,233 @@ void plot_parsing_result(const Config &config, const CameraCalibration camera_ca
 			
 		}
 
-#ifdef OpenMP
-		omp_lock_t lock;
-		omp_init_lock(&lock);
-		cout << "max thread num: " << omp_get_max_threads() << endl;
-#endif
-
 		//define point label point cloud vector
 		std::vector<pcl::PointCloud<PointLabel>> label_point_vec(max_common_frame);
 		
 		//pointcloud timestamp vec
 		std::vector<std_msgs::Header> label_point_stamp(max_common_frame);
 
-#ifdef OpenMP
-#ifndef VIEW_IMAGE
-#ifndef VIEW_POINTCLOUD
-	#pragma omp parallel for
-#endif
-#endif
-#endif
+		//queue for store n raw images
+		std::deque<std::vector<cv::Mat> > 
+			raw_images_color_vec_que;
+
+		//queue for store n parsing images
+		std::deque<std::vector<cv::Mat> > 
+			parsing_images_color_vec_que;
+
+		//queue for store n parsing images
+		std::deque<Eigen::Matrix4d> odom_mat_que;
+
+		bool firsted = true;
+
+		//We must assert it, or it is too less.
+		assert(max_common_frame >= config.images_num_for_pointcloud / 2 + 1);
+
+		//the index that the pointcloud alignes to the deque
+		auto pointcloud_pos_at_que = 0;
+
 		for (auto frame_num = 0; frame_num < max_common_frame; frame_num++) {
+			clock_t start_time = clock();
+
+			//std::vector<std::vector<unsigned char> > label_vec_vec(MAX_POINTS_NUM,
+				//std::vector<unsigned char>(CLASSID_NUM, 0));
+
 			pcl::PointCloud<PointType>::Ptr source(new pcl::PointCloud<PointType>);
+			pcl::PointCloud<PointType>::Ptr source_tran(new pcl::PointCloud<PointType>);
 			//raw point cloud
 			pcl::PointCloud<PointRGB>::Ptr source_rgb(new pcl::PointCloud<PointRGB>);
 
 			std::vector<cv::Mat> raw_images_color_vec(max_common_frame);
 			std::vector<cv::Mat> parsing_images_color_vec(max_common_frame);
 
-#ifdef OpenMP
-			omp_set_lock(&lock);
-#endif
-			auto point_ptr 
+			sensor_msgs::PointCloud2Ptr point_ptr 
 				= point_it_vec[frame_num]->instantiate<sensor_msgs::PointCloud2>();
 			pcl::fromROSMsg(*point_ptr, *source);
-#ifdef OpenMP
-			omp_unset_lock(&lock);
-#endif
+
+			//init two dim array
+			unsigned int* label_vec_vec = new unsigned int[source->points.size() * CLASSID_NUM];
+			memset(label_vec_vec, 0 , 
+				source->points.size() * CLASSID_NUM * sizeof(unsigned int));
 
 			//set stamp
 			label_point_stamp[frame_num] = point_ptr->header;
 
 			printf("[pointcloud time]: %.2f\n", point_ptr->header.stamp.toSec());
 
-			for (auto i = 0; i < image_num; i++) {
-#ifdef OpenMP
-				omp_set_lock(&lock);
-#endif
-				auto raw_image_ptr = 
-					raw_images_it_vec_vec[i][frame_num]->instantiate<sensor_msgs::CompressedImage>();
-#ifdef OpenMP
-				omp_unset_lock(&lock); 
-#endif
+			if (firsted) {
+				for (auto local_i = 0; local_i <= config.images_num_for_pointcloud / 2 
+						&& frame_num + local_i < max_common_frame; local_i++) {
+					for (auto i = 0; i < image_num; i++) {
+						auto raw_image_ptr = 
+							raw_images_it_vec_vec[i][frame_num + local_i]->
+							instantiate<sensor_msgs::CompressedImage>();
 
-#ifdef OpenMP
-				omp_set_lock(&lock);
-#endif
-				auto parsing_image_ptr = 
-					parsing_images_it_vec_vec[i][frame_num]->instantiate<sensor_msgs::CompressedImage>();
-#ifdef OpenMP
-				omp_unset_lock(&lock);
-#endif
+						auto parsing_image_ptr = 
+							parsing_images_it_vec_vec[i][frame_num + local_i]->
+							instantiate<sensor_msgs::CompressedImage>();
 
-				//convert from ros msg
-				raw_images_color_vec[i] = cv::imdecode(cv::Mat(raw_image_ptr->data), 1);
-				parsing_images_color_vec[i] = cv::imdecode(cv::Mat(parsing_image_ptr->data), 1);
-		
-				//std::cout << " " << raw_image_ptr->header.stamp.toSec() - 
-					//point_ptr->header.stamp.toSec();
+						//convert from ros msg
+						raw_images_color_vec[i] = cv::imdecode(cv::Mat(raw_image_ptr->data), 1);
+						parsing_images_color_vec[i] = cv::imdecode(cv::Mat(parsing_image_ptr->data), 1);
+					}
+
+					auto odom_ptr
+						= odom_it_vec[frame_num]->instantiate<nav_msgs::Odometry>();
+					auto odom_matrix = getMatrix4dFromMsg(*odom_ptr);
+
+					//pop the front and push to the back
+					if (raw_images_color_vec_que.size() >= config.images_num_for_pointcloud) {
+						raw_images_color_vec_que.pop_front();
+						parsing_images_color_vec_que.pop_front();
+						odom_mat_que.pop_front();
+					}
+					raw_images_color_vec_que.push_back(raw_images_color_vec);
+					parsing_images_color_vec_que.push_back(parsing_images_color_vec);
+					odom_mat_que.push_back(odom_matrix);
+				}
+				firsted = false;
 			}
-			
-			//set to zero
-			//memset(&label_vec_vec[0][0], 0, sizeof(MAX_POINTS_NUM * CLASSID_NUM));
-			for (auto i = 0; i < MAX_POINTS_NUM; i++) {
-				for (auto j = 0; j < CLASSID_NUM; j++) {
-					label_vec_vec[i][j] = 0;
+			else {
+				auto half_num = config.images_num_for_pointcloud / 2;
+				//only there are enough data, that ew can read them.
+				if (frame_num + half_num < max_common_frame) {
+					for (auto i = 0; i < image_num; i++) {
+						auto raw_image_ptr = 
+							raw_images_it_vec_vec[i][frame_num + config.images_num_for_pointcloud / 2]->
+							instantiate<sensor_msgs::CompressedImage>();
+
+						auto parsing_image_ptr = 
+							parsing_images_it_vec_vec[i][frame_num + config.images_num_for_pointcloud / 2]->
+							instantiate<sensor_msgs::CompressedImage>();
+
+						//convert from ros msg
+						raw_images_color_vec[i] = cv::imdecode(cv::Mat(raw_image_ptr->data), 1);
+						parsing_images_color_vec[i] = cv::imdecode(cv::Mat(parsing_image_ptr->data), 1);
+					}
+
+					auto odom_ptr
+						= odom_it_vec[frame_num + config.images_num_for_pointcloud / 2]->
+							instantiate<nav_msgs::Odometry>();
+					auto odom_matrix = getMatrix4dFromMsg(*odom_ptr);
+
+					//pop the front and push to the back
+					if (raw_images_color_vec_que.size() >= config.images_num_for_pointcloud) {
+						raw_images_color_vec_que.pop_front();
+						parsing_images_color_vec_que.pop_front();
+						odom_mat_que.pop_front();
+
+						pointcloud_pos_at_que--;
+					}
+					raw_images_color_vec_que.push_back(raw_images_color_vec);
+					parsing_images_color_vec_que.push_back(parsing_images_color_vec);
+					odom_mat_que.push_back(odom_matrix);
+
+					pointcloud_pos_at_que++;
+				}
+				else {
+					pointcloud_pos_at_que++;
 				}
 			}
+
+			
+			//for (auto i = 0; i < MAX_POINTS_NUM; i++) {
+				//for (auto j = 0; j < CLASSID_NUM; j++) {
+					//label_vec_vec[i][j] = 0;
+				//}
+			//}
 
 			label_point_vec[frame_num].resize(source->size());
 
+			//get Label mask, which will set the pos is moving object to false
+			std::deque<bool> label_mask(source->size(), true);
+
 			for (auto idx = 0; idx < image_num; idx++) {
-				for (auto i = 0 ; i < raw_images_color_vec[idx].rows; i++) {
-					for (auto j = 0 ; j < raw_images_color_vec[idx].cols; j++) {
-						//get class id
-						auto id = parsing_images_color_vec[idx].at<cv::Vec3b>(i, j)[0];
-						auto color = colorlist[id];
-						auto raw_color = raw_images_color_vec[idx].at<cv::Vec3b>(i, j);
-
-						for (auto k = 0; k < raw_images_color_vec[idx].channels(); k++) {
-							raw_color[k] =
-								static_cast<uchar>(std::min(static_cast<uchar>(color[ 2 - k] * MASK_VALUE + 
-									raw_color[k] * (1 - MASK_VALUE)), uchar(255)));
-						}
-						raw_images_color_vec[idx].at<cv::Vec3b>(i, j) = raw_color;
-					}
-				}
-
 				//caculate camera_calibration to adapt to project_cloud_to_image_colored function
 				double intrinsics[4];
-				intrinsics[0] = camera_calibration[idx].cameraK.at<double>(0, 0);
-				intrinsics[1] = camera_calibration[idx].cameraK.at<double>(1, 1);
-				intrinsics[2] = camera_calibration[idx].cameraK.at<double>(0, 2);
-				intrinsics[3] = camera_calibration[idx].cameraK.at<double>(1, 2);
-
-				//because the images hase been undistored
 				double distortion[5];
-				//distortion[0] = camera_calibration[idx].cameraD.at<double>(0);
-				//distortion[1] = camera_calibration[idx].cameraD.at<double>(1);
-				//distortion[2] = camera_calibration[idx].cameraD.at<double>(2);
-				//distortion[3] = camera_calibration[idx].cameraD.at<double>(3);
-				//distortion[4] = camera_calibration[idx].cameraD.at<double>(4);
-
-				distortion[0] = 0;
-				distortion[1] = 0;
-				distortion[2] = 0;
-				distortion[3] = 0;
-				distortion[4] = 0;
-
 				double extrinsic[6];
 
-				Eigen::Quaternion<double> rotation(
-					camera_calibration[idx].cameraR[0],
-					camera_calibration[idx].cameraR[1],
-					camera_calibration[idx].cameraR[2],
-					camera_calibration[idx].cameraR[3]);
+				get_intrinsic_extrinsci_dis(camera_calibration[idx], intrinsics, 
+					distortion, extrinsic);
 
-				Eigen::AngleAxis<double> aa(rotation);
-				//let avec have axis and angle
-				Eigen::Vector3d avec = aa.axis() * aa.angle();
-
-				//store axis angle
-				extrinsic[0] = avec[0];
-				extrinsic[1] = avec[1];
-				extrinsic[2] = avec[2];
-
-				//store translation
-				extrinsic[3] = camera_calibration[idx].cameraT[0];
-				extrinsic[4] = camera_calibration[idx].cameraT[1];
-				extrinsic[5] = camera_calibration[idx].cameraT[2];
-
-				convert_inv_extrinsics(extrinsic, extrinsic);
-
-				//project_cloud_to_image_colored
 				project_cloud_to_image_colored(source, label_vec_vec,
-					intrinsics, distortion, extrinsic, raw_images_color_vec[idx],
-					parsing_images_color_vec[idx]);
+					intrinsics, distortion, extrinsic, 
+					raw_images_color_vec_que[pointcloud_pos_at_que][idx],
+					parsing_images_color_vec_que[pointcloud_pos_at_que][idx], label_mask, false);
+			}
+
+			//choose the max num class id of each point of the source
+			caculate_label_mask(label_vec_vec, label_mask);
+
+			//we must set label_vec_vec to zero
+			memset(label_vec_vec, 0 , 
+				source->points.size() * CLASSID_NUM * sizeof(unsigned int));
+
+
+			for (auto que_idx = 0; que_idx < raw_images_color_vec_que.size(); que_idx++) {
+				for (auto idx = 0; idx < image_num; idx++) {
+					//add parsing label to raw image
+					//for (auto i = 0 ; i < raw_images_color_vec[idx].rows; i++) {
+						//for (auto j = 0 ; j < raw_images_color_vec[idx].cols; j++) {
+							////get class id
+							//auto id = parsing_images_color_vec[idx].at<cv::Vec3b>(i, j)[0];
+							//auto color = colorlist[id];
+							//auto raw_color = raw_images_color_vec[idx].at<cv::Vec3b>(i, j);
+
+							//for (auto k = 0; k < raw_images_color_vec[idx].channels(); k++) {
+								//raw_color[k] =
+									//static_cast<uchar>(std::min(static_cast<uchar>(color[ 2 - k] * MASK_VALUE + 
+										//raw_color[k] * (1 - MASK_VALUE)), uchar(255)));
+							//}
+							//raw_images_color_vec[idx].at<cv::Vec3b>(i, j) = raw_color;
+						//}
+					//}
+
+				//caculate camera_calibration to adapt to project_cloud_to_image_colored function
+					double intrinsics[4];
+					double distortion[5];
+					double extrinsic[6];
+
+					get_intrinsic_extrinsci_dis(camera_calibration[idx], intrinsics, 
+						distortion, extrinsic);
+
+					//project_cloud_to_image_colored
+					//project_cloud_to_image_colored(source, label_vec_vec,
+						//intrinsics, distortion, extrinsic, raw_images_color_vec[idx],
+						//parsing_images_color_vec[idx]);
+
+					//transform each poincloud to the position at pointcloud_pos_at_que
+					Eigen::Matrix4d delta_mat = 
+						odom_mat_que[que_idx].inverse() * odom_mat_que[pointcloud_pos_at_que];
+					pcl::transformPointCloud(*source, *source_tran, delta_mat);
+
+					project_cloud_to_image_colored(source_tran, label_vec_vec,
+						intrinsics, distortion, extrinsic, raw_images_color_vec_que[que_idx][idx],
+						parsing_images_color_vec_que[que_idx][idx], label_mask, true);
+				}
+
+#ifdef VIEW_IMAGE
+				//cv::imshow("pasring", raw_images_color_vec[0]);
+				//cv::waitKey(1);
+
+				ShowManyImages("image", 5, 
+					raw_images_color_vec_que[que_idx][0], 
+					raw_images_color_vec_que[que_idx][1],
+					raw_images_color_vec_que[que_idx][2], 
+					raw_images_color_vec_que[que_idx][3], 
+					raw_images_color_vec_que[que_idx][4]);
+#endif
 			}
 
 			//choose the max num class id of each point of the source
 			caculate_label(label_vec_vec, label_point_vec[frame_num]);
-
-#ifdef VIEW_IMAGE
-			//cv::imshow("pasring", raw_images_color_vec[0]);
-			//cv::waitKey(1);
-
-			ShowManyImages("image", 5, raw_images_color_vec[0], raw_images_color_vec[1],
-				raw_images_color_vec[2], raw_images_color_vec[3], raw_images_color_vec[4]);
-#endif
+			
+			//set the point label to moving_object whose's label_mask is true
+			for (auto iii = 0; iii < label_mask.size(); iii++) {
+				if (label_mask[iii] == false) {
+					label_point_vec[frame_num].points[iii].label = static_cast<int>(moving_object);
+				}
+			}
 
 #ifdef VIEW_POINTCLOUD
 			PointRGB temp;
@@ -653,18 +871,6 @@ void plot_parsing_result(const Config &config, const CameraCalibration camera_ca
 					static_cast<unsigned char>(label_point_vec[frame_num].points[i].label);
 				if (class_id == INVALID_CLASS_ID) continue;
 
-				//TODO for test
-				//if (class_id == 1) {
-					//temp.r = colorlist[class_id][0];
-					//temp.g = colorlist[class_id][1];
-					//temp.b = colorlist[class_id][2];
-				//}
-				//else {
-					//temp.r = 255;
-					//temp.g = 255;
-					//temp.b = 255;
-				//}
-
 				temp.r = colorlist[class_id][0];
 				temp.g = colorlist[class_id][1];
 				temp.b = colorlist[class_id][2];
@@ -677,6 +883,12 @@ void plot_parsing_result(const Config &config, const CameraCalibration camera_ca
 				3, "cloud");
 			viewer.spinOnce(10);
 #endif
+			LOG(INFO) << "Time used: " << (clock() - start_time) * 1000 / CLOCKS_PER_SEC << "ms";
+
+			//delete the two dim pointer array
+			delete[] label_vec_vec;
+			label_vec_vec = NULL;
+
 		}
 		bag.close();
 
@@ -773,6 +985,7 @@ void load_config(char * file, Config& config) {
 
 	config.raw_point_topic = yaml["raw_point_topic"].as<std::string>();
 	config.label_point_topic = yaml["label_point_topic"].as<std::string>();
+	config.lidar_odom_topic = yaml["lidar_odom_topic"].as<std::string>();
 
 	for(auto i = 0; i < yaml["raw_image_topic"].size(); i++) {
 		config.raw_image_topic_vec.push_back(yaml["raw_image_topic"][i].as<std::string>());
@@ -783,6 +996,8 @@ void load_config(char * file, Config& config) {
 	}
 
 	assert(yaml["raw_image_topic"].size() == yaml["parsing_image_topic"].size());
+
+	config.images_num_for_pointcloud = yaml["images_num_for_pointcloud"].as<int>();
 }
 
   
@@ -791,11 +1006,19 @@ int main(int argc, char** argv) {
 		std::cerr << "rosrun plot_image_pasring_results_node config_file camera_params_file\n";
 		exit(-1);
 	}
+
+	google::InitGoogleLogging(argv[0]);
+
+	FLAGS_stderrthreshold = 0;
+
 	Config config;
 	load_config(argv[1], config);
 	CameraCalibration camera_calibration[5];
 	get_camera_params(std::string(argv[2]), camera_calibration);
-	plot_parsing_result(config, camera_calibration);
+
+	//plot_parsing_result(config, camera_calibration);
+	plot_parsing_result_from_mutilframe(config, camera_calibration);
 
 	return 0;
 }
+

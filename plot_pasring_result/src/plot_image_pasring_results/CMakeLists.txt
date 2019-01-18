@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(plot_image_pasring_results)
 
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 ${CMAKE_CXX_FLAGS}")
+#SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 ${CMAKE_CXX_FLAGS}")
 
 #For debug
 #SET(CMAKE_CXX_FLAGS "-std=c++11 -g ${CMAKE_CXX_FLAGS}")
 
 #For Visualization
-#SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 -DVIEW_IMAGE -DVIEW_POINTCLOUD ${CMAKE_CXX_FLAGS}")
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 -DVIEW_IMAGE -DVIEW_POINTCLOUD ${CMAKE_CXX_FLAGS}")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -166,6 +166,8 @@ target_link_libraries(${PROJECT_NAME}_node
 	 ${OpenCV_LIBRARIES}
 	 ${PCL_LIBRARIES}
 	 yaml-cpp
+	 glog
+	 gflags
  )
 
 #############
