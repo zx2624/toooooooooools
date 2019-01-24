@@ -3,13 +3,14 @@
 // FILE:     plot_image_pasring_results.cc
 // ROLE:     TODO (some explanation)
 // CREATED:  2019-01-07 17:20:44
-// MODIFIED: 2019-01-18 10:37:26
+// MODIFIED: 2019-01-18 19:41:37
 #include <stdio.h>
 #include <stdarg.h>
 #include <time.h>
 
 #include <iostream>
 #include <memory>
+#include <chrono>
 
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -325,7 +326,7 @@ void ShowManyImages(std::string title, int nArgs, ...) {
 
 bool project_cloud_to_image_colored(pcl::PointCloud<PointType>::Ptr cloud,
 														//pcl::PointCloud<PointLabel>& label_cloud,
-														unsigned int* label_vec_vec,
+														unsigned int* label_vec_vec_vec, unsigned int first_dim_idx,
                             const double intrinsic[], const double distortion[],
                             const double extrinsic[],
                             cv::Mat &image, const cv::Mat &parsing_image,
@@ -426,54 +427,64 @@ bool project_cloud_to_image_colored(pcl::PointCloud<PointType>::Ptr cloud,
 
 		//Let the class_id' value ++
 		//label_vec_vec[pt3d_idx[k]][class_id]++;
-		label_vec_vec[pt3d_idx[k] * CLASSID_NUM + class_id]++;
+		label_vec_vec_vec[first_dim_idx * point_count * CLASSID_NUM +  
+			pt3d_idx[k] * CLASSID_NUM + class_id]++;
 
-		if (using_mask) {
+		if (static_cast<HobotLabels>(class_id) == moving_object) continue;
+		//draw circle at pixel that point can be projected into
+		auto point = cloud->points[pt3d_idx[k]];
+		int color_idx = static_cast<int>(64 * (pt3d_dis[k] - MIN_DISTANCE) 
+			/ (MAX_DISTANCE - MIN_DISTANCE));
 
-			if (static_cast<HobotLabels>(class_id) == moving_object) continue;
-			//draw circle at pixel that point can be projected into
-			auto point = cloud->points[pt3d_idx[k]];
-			int color_idx = static_cast<int>(64 * (pt3d_dis[k] - MIN_DISTANCE) 
-				/ (MAX_DISTANCE - MIN_DISTANCE));
+		//circle points based on distance
+		//circle(image, cv::Point(x, y), 1, cv::Scalar(255 * B[color_idx],
+			//255 * G[color_idx], 255 * R[color_idx]), 1);
 
-			//circle points based on distance
-			//circle(image, cv::Point(x, y), 1, cv::Scalar(255 * B[color_idx],
-				//255 * G[color_idx], 255 * R[color_idx]), 1);
+		//circle points based on label
+		circle(image, cv::Point(x, y), 2, cv::Scalar(colorlist[class_id][2],
+			colorlist[class_id][1], colorlist[class_id][0]), 2);
 
-			//circle points based on label
-			circle(image, cv::Point(x, y), 2, cv::Scalar(colorlist[class_id][2],
-				colorlist[class_id][1], colorlist[class_id][0]), 2);
-
-			//if(cloud->points[pt3d_idx[k]].r == cloud->points[pt3d_idx[k]].g &&
-				 //cloud->points[pt3d_idx[k]].r == cloud->points[pt3d_idx[k]].b)
-			//{
-				//cloud->points[pt3d_idx[k]].r = image.at<cv::Vec3b>(y, x)[2];
-				//cloud->points[pt3d_idx[k]].g = image.at<cv::Vec3b>(y, x)[1];
-				//cloud->points[pt3d_idx[k]].b = image.at<cv::Vec3b>(y, x)[0];
-			//}
-		}
+		//if(cloud->points[pt3d_idx[k]].r == cloud->points[pt3d_idx[k]].g &&
+			 //cloud->points[pt3d_idx[k]].r == cloud->points[pt3d_idx[k]].b)
+		//{
+			//cloud->points[pt3d_idx[k]].r = image.at<cv::Vec3b>(y, x)[2];
+			//cloud->points[pt3d_idx[k]].g = image.at<cv::Vec3b>(y, x)[1];
+			//cloud->points[pt3d_idx[k]].b = image.at<cv::Vec3b>(y, x)[0];
+		//}
 
   }
   return true;
 }
 
-void caculate_label(unsigned int* label_vec_vec,
-	pcl::PointCloud<PointLabel>& point_label) {
+void caculate_label(unsigned int* label_vec_vec_vec,
+	pcl::PointCloud<PointLabel>& point_label, unsigned int size_of_first_dim) {
 
 	//label_vec_vec.size() must equal to point_label.size()
 	//assert(label_vec_vec.size() == point_label.size());
 
-	for (auto i = 0; i < point_label.size(); i++) {
+	auto size_of_second_dim = point_label.size();
+
+	for (auto i = 0; i < size_of_second_dim; i++) {
+
+		unsigned int temp_label_table[CLASSID_NUM] = {0};
+
+		//add all data belong to each points
+		for (auto ii = 0; ii < size_of_first_dim; ii++) {
+			for (auto j = 0; j < CLASSID_NUM; j++) {
+					temp_label_table[j] += label_vec_vec_vec[ii * size_of_second_dim * CLASSID_NUM + 
+						i * CLASSID_NUM + j];
+				}
+			}
+		
 		unsigned char max_num = 0;
 		unsigned char idx = 0;
-		for (auto j = 0; j < CLASSID_NUM; j++) {
-			//if (label_vec_vec[i][j] > max_num) {
-			if (label_vec_vec[i * CLASSID_NUM + j] > max_num) {
-				//max_num = label_vec_vec[i][j];
-				max_num = label_vec_vec[i * CLASSID_NUM + j];
-				idx = j;
+		for (auto ii = 0; ii < CLASSID_NUM ; ii++) {
+			if (max_num < temp_label_table[ii]) {
+				max_num = temp_label_table[ii];
+				idx  = ii;
 			}
 		}
+
 		if (max_num > 0) {
 			//set to the label whose amount is maximum.
 			point_label.points[i].label = idx;
@@ -482,19 +493,25 @@ void caculate_label(unsigned int* label_vec_vec,
 			//This point have no label, we set it to 255 defaultly.
 			point_label.points[i].label = INVALID_CLASS_ID;
 		}
+
 	}
 }
 
-void caculate_label_mask(unsigned int* label_vec_vec,
+void caculate_label_mask(unsigned int* label_vec_vec_vec, unsigned int first_dim_idx,
 	std::deque<bool>& label_mask) {
-	for (auto i = 0; i < label_mask.size(); i++) {
+	auto second_dim_size = label_mask.size();
+
+	for (auto i = 0; i < second_dim_size; i++) {
 		unsigned char max_num = 0;
 		unsigned char idx = 0;
+
 		for (auto j = 0; j < CLASSID_NUM; j++) {
 			//if (label_vec_vec[i][j] > max_num) {
-			if (label_vec_vec[i * CLASSID_NUM + j] > max_num) {
+			if (label_vec_vec_vec[first_dim_idx * second_dim_size * CLASSID_NUM +
+					i * CLASSID_NUM + j] > max_num) {
 				//max_num = label_vec_vec[i][j];
-				max_num = label_vec_vec[i * CLASSID_NUM + j];
+				max_num = label_vec_vec_vec[first_dim_idx * second_dim_size * CLASSID_NUM + 
+					i * CLASSID_NUM + j];
 				idx = j;
 			}
 		}
@@ -511,6 +528,7 @@ void caculate_label_mask(unsigned int* label_vec_vec,
 void plot_parsing_result_from_mutilframe(const Config &config, 
 	const CameraCalibration camera_calibration[]) {
 	const double EPS = 0.01;
+	const double MAX_TIME_DIFF_Pandora_Lidar_IMAGE = 0.10;
 	//vector of bag file
 	std::vector<std::string> vec_bag_files;
 	//get all bag files at bag_path
@@ -533,10 +551,10 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 		rosbag::View odoms_view(bag, rosbag::TopicQuery(config.lidar_odom_topic));
 
 		//pointcloud iterator vector
-		std::vector<rosbag::View::iterator> point_it_vec(points_view.size());
+		std::deque<rosbag::View::iterator> point_it_vec(points_view.size());
 
 		//odom iterator vector
-		std::vector<rosbag::View::iterator> odom_it_vec(odoms_view.size());
+		std::deque<rosbag::View::iterator> odom_it_vec(odoms_view.size());
 
 		//Prepare for mutilthread to read rosbag data.
 		rosbag::View::iterator points_view_iter = points_view.begin();
@@ -558,7 +576,7 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 			}
 			else break;
 		}
-		
+
 		{
 			auto idx = 0;
 			for (;points_view_iter != points_view.end(); points_view_iter++) {
@@ -589,19 +607,14 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 		std::vector<rosbag::View> parsing_images_view_vec(image_num);
 
 		//vector vector iterator
-		std::vector<std::vector<rosbag::View::iterator>> raw_images_it_vec_vec(image_num);
-		std::vector<std::vector<rosbag::View::iterator>> parsing_images_it_vec_vec(image_num);
+		std::vector<std::deque<rosbag::View::iterator>> raw_images_it_vec_vec(image_num);
+		std::vector<std::deque<rosbag::View::iterator>> parsing_images_it_vec_vec(image_num);
 
 		for (auto i = 0; i < image_num; i++) {
 			raw_images_view_vec[i].addQuery(bag, 
 				rosbag::TopicQuery(config.raw_image_topic_vec[i]));
 			parsing_images_view_vec[i].addQuery(bag,
 				rosbag::TopicQuery(config.parsing_image_topic_vec[i]));
-
-			//point size must == image size
-			//TODO
-			//assert(points_view.size() == raw_images_view_vec[i].size());
-			//assert(points_view.size() == parsing_images_view_vec[i].size());
 
 			assert(raw_images_view_vec[i].size() == parsing_images_view_vec[i].size());
 
@@ -629,6 +642,34 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 			}
 			
 		}
+		//align pointcloud, odom, image
+		{
+			unsigned int odom_delta = 0;
+			unsigned int image_delta = 0;
+			for(unsigned int iii = 0; iii < max_common_frame; iii++) {
+				auto raw_image_ptr = 
+					raw_images_it_vec_vec[0][0]->
+						instantiate<sensor_msgs::CompressedImage>();
+
+				auto odom_ptr
+					= odom_it_vec[0]->instantiate<nav_msgs::Odometry>();
+				if (raw_image_ptr->header.stamp.toSec() - odom_ptr->header.stamp.toSec()
+						> MAX_TIME_DIFF_Pandora_Lidar_IMAGE) {
+					odom_it_vec.pop_front();
+					point_it_vec.pop_front();
+					odom_delta++;
+				}
+				else if (odom_ptr->header.stamp.toSec() - raw_image_ptr->header.stamp.toSec()
+					> MAX_TIME_DIFF_Pandora_Lidar_IMAGE) {
+					for (auto iiii = 0; iiii < image_num; iiii++) {
+						raw_images_it_vec_vec[iiii].pop_front();	
+						parsing_images_it_vec_vec[iiii].pop_front();	
+					}
+					image_delta++;
+				}
+				else break;
+			}
+		}
 
 		//define point label point cloud vector
 		std::vector<pcl::PointCloud<PointLabel>> label_point_vec(max_common_frame);
@@ -640,12 +681,18 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 		std::deque<std::vector<cv::Mat> > 
 			raw_images_color_vec_que;
 
+		//queue for store n images stamp
+		std::deque<std::vector<double> > raw_images_stamp_vec_que;
+
 		//queue for store n parsing images
 		std::deque<std::vector<cv::Mat> > 
 			parsing_images_color_vec_que;
 
 		//queue for store n parsing images
 		std::deque<Eigen::Matrix4d> odom_mat_que;
+
+		//queue for store n odom stamp
+		std::deque<double> odom_stamp_que;
 
 		bool firsted = true;
 
@@ -655,66 +702,89 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 		//the index that the pointcloud alignes to the deque
 		auto pointcloud_pos_at_que = 0;
 
+		//use to record the biase between pointcloud and image, odom
+		auto que_std = 0;
 		for (auto frame_num = 0; frame_num < max_common_frame; frame_num++) {
-			clock_t start_time = clock();
-
-			//std::vector<std::vector<unsigned char> > label_vec_vec(MAX_POINTS_NUM,
-				//std::vector<unsigned char>(CLASSID_NUM, 0));
+			auto  start_time = std::chrono::high_resolution_clock::now();
 
 			pcl::PointCloud<PointType>::Ptr source(new pcl::PointCloud<PointType>);
-			pcl::PointCloud<PointType>::Ptr source_tran(new pcl::PointCloud<PointType>);
 			//raw point cloud
 			pcl::PointCloud<PointRGB>::Ptr source_rgb(new pcl::PointCloud<PointRGB>);
 
-			std::vector<cv::Mat> raw_images_color_vec(max_common_frame);
-			std::vector<cv::Mat> parsing_images_color_vec(max_common_frame);
-
-			sensor_msgs::PointCloud2Ptr point_ptr 
+			auto point_ptr 
 				= point_it_vec[frame_num]->instantiate<sensor_msgs::PointCloud2>();
 			pcl::fromROSMsg(*point_ptr, *source);
 
+
+			std::vector<cv::Mat> raw_images_color_vec(image_num);
+			std::vector<double> raw_images_stamp_vec(image_num);
+
+			std::vector<cv::Mat> parsing_images_color_vec(image_num);
+
 			//init two dim array
-			unsigned int* label_vec_vec = new unsigned int[source->points.size() * CLASSID_NUM];
-			memset(label_vec_vec, 0 , 
-				source->points.size() * CLASSID_NUM * sizeof(unsigned int));
+			//unsigned int* label_vec_vec = new unsigned int[source->points.size() * CLASSID_NUM];
+			//memset(label_vec_vec, 0 , 
+				//source->points.size() * CLASSID_NUM * sizeof(unsigned int));
+
+			//init thress dim array
+			unsigned int* label_vec_vec_vec = new unsigned int[
+				config.images_num_for_pointcloud * source->points.size() * CLASSID_NUM];
+			memset(label_vec_vec_vec, 0 , 
+				config.images_num_for_pointcloud * source->points.size() * CLASSID_NUM
+				* sizeof(unsigned int));
 
 			//set stamp
 			label_point_stamp[frame_num] = point_ptr->header;
 
-			printf("[pointcloud time]: %.2f\n", point_ptr->header.stamp.toSec());
+			std::cout.precision(2);
+			std::cout << "[point, im0, im1, im2, im3, im4, od]:" << std::fixed
+				<< point_ptr->header.stamp.toSec();
 
 			if (firsted) {
 				for (auto local_i = 0; local_i <= config.images_num_for_pointcloud / 2 
-						&& frame_num + local_i < max_common_frame; local_i++) {
+						&& local_i < max_common_frame; local_i++) {
 					for (auto i = 0; i < image_num; i++) {
 						auto raw_image_ptr = 
-							raw_images_it_vec_vec[i][frame_num + local_i]->
+							raw_images_it_vec_vec[i][local_i]->
 							instantiate<sensor_msgs::CompressedImage>();
 
 						auto parsing_image_ptr = 
-							parsing_images_it_vec_vec[i][frame_num + local_i]->
+							parsing_images_it_vec_vec[i][local_i]->
 							instantiate<sensor_msgs::CompressedImage>();
 
 						//convert from ros msg
 						raw_images_color_vec[i] = cv::imdecode(cv::Mat(raw_image_ptr->data), 1);
+						raw_images_stamp_vec[i] = raw_image_ptr->header.stamp.toSec();
+
 						parsing_images_color_vec[i] = cv::imdecode(cv::Mat(parsing_image_ptr->data), 1);
 					}
 
 					auto odom_ptr
-						= odom_it_vec[frame_num]->instantiate<nav_msgs::Odometry>();
+						= odom_it_vec[local_i]->instantiate<nav_msgs::Odometry>();
 					auto odom_matrix = getMatrix4dFromMsg(*odom_ptr);
+
+					double odom_stamp = odom_ptr->header.stamp.toSec();
 
 					//pop the front and push to the back
 					if (raw_images_color_vec_que.size() >= config.images_num_for_pointcloud) {
 						raw_images_color_vec_que.pop_front();
+						raw_images_stamp_vec_que.pop_front();
+
 						parsing_images_color_vec_que.pop_front();
+
 						odom_mat_que.pop_front();
+						odom_stamp_que.pop_front();
 					}
 					raw_images_color_vec_que.push_back(raw_images_color_vec);
+					raw_images_stamp_vec_que.push_back(raw_images_stamp_vec);
+
 					parsing_images_color_vec_que.push_back(parsing_images_color_vec);
+
 					odom_mat_que.push_back(odom_matrix);
+					odom_stamp_que.push_back(odom_stamp);
 				}
 				firsted = false;
+				LOG(INFO) << "Que size: " << raw_images_color_vec_que.size();
 			}
 			else {
 				auto half_num = config.images_num_for_pointcloud / 2;
@@ -731,6 +801,8 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 
 						//convert from ros msg
 						raw_images_color_vec[i] = cv::imdecode(cv::Mat(raw_image_ptr->data), 1);
+						raw_images_stamp_vec[i] = raw_image_ptr->header.stamp.toSec();
+
 						parsing_images_color_vec[i] = cv::imdecode(cv::Mat(parsing_image_ptr->data), 1);
 					}
 
@@ -739,17 +811,28 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 							instantiate<nav_msgs::Odometry>();
 					auto odom_matrix = getMatrix4dFromMsg(*odom_ptr);
 
+					double odom_stamp = odom_ptr->header.stamp.toSec();
+
 					//pop the front and push to the back
 					if (raw_images_color_vec_que.size() >= config.images_num_for_pointcloud) {
 						raw_images_color_vec_que.pop_front();
+						raw_images_stamp_vec_que.pop_front();
+
 						parsing_images_color_vec_que.pop_front();
+
 						odom_mat_que.pop_front();
+						odom_stamp_que.pop_front();
+
 
 						pointcloud_pos_at_que--;
 					}
 					raw_images_color_vec_que.push_back(raw_images_color_vec);
+					raw_images_stamp_vec_que.push_back(raw_images_stamp_vec);
+
 					parsing_images_color_vec_que.push_back(parsing_images_color_vec);
+
 					odom_mat_que.push_back(odom_matrix);
+					odom_stamp_que.push_back(odom_stamp);
 
 					pointcloud_pos_at_que++;
 				}
@@ -758,17 +841,24 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 				}
 			}
 
-			
-			//for (auto i = 0; i < MAX_POINTS_NUM; i++) {
-				//for (auto j = 0; j < CLASSID_NUM; j++) {
-					//label_vec_vec[i][j] = 0;
-				//}
-			//}
+			for (auto time_idx = 0; time_idx < image_num; time_idx++) {
+				std::cout << ", " << 
+					point_ptr->header.stamp.toSec() - 
+					raw_images_stamp_vec_que[pointcloud_pos_at_que][time_idx];
+			}
+			std::cout << ", " << 
+				point_ptr->header.stamp.toSec() - 
+				odom_stamp_que[pointcloud_pos_at_que] << std::endl;
+
+			LOG(INFO) << "pointcloud pos at que: " << pointcloud_pos_at_que;
 
 			label_point_vec[frame_num].resize(source->size());
 
 			//get Label mask, which will set the pos is moving object to false
 			std::deque<bool> label_mask(source->size(), true);
+
+			//a backup of raw_images
+			std::vector<cv::Mat> raw_images_temp(image_num);
 
 			for (auto idx = 0; idx < image_num; idx++) {
 				//caculate camera_calibration to adapt to project_cloud_to_image_colored function
@@ -779,39 +869,38 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 				get_intrinsic_extrinsci_dis(camera_calibration[idx], intrinsics, 
 					distortion, extrinsic);
 
-				project_cloud_to_image_colored(source, label_vec_vec,
+				//deep copy
+				raw_images_temp[idx] = 
+					raw_images_color_vec_que[pointcloud_pos_at_que][idx].clone();
+
+				project_cloud_to_image_colored(source, label_vec_vec_vec, pointcloud_pos_at_que, 
 					intrinsics, distortion, extrinsic, 
-					raw_images_color_vec_que[pointcloud_pos_at_que][idx],
+					raw_images_temp[idx],
 					parsing_images_color_vec_que[pointcloud_pos_at_que][idx], label_mask, false);
 			}
 
+#ifdef VIEW_IMAGE
+			ShowManyImages("image", 5, 
+				raw_images_temp[0], 
+				raw_images_temp[1],
+				raw_images_temp[2], 
+				raw_images_temp[3], 
+				raw_images_temp[4]);
+#endif
+
 			//choose the max num class id of each point of the source
-			caculate_label_mask(label_vec_vec, label_mask);
+			caculate_label_mask(label_vec_vec_vec, pointcloud_pos_at_que, label_mask);
 
-			//we must set label_vec_vec to zero
-			memset(label_vec_vec, 0 , 
-				source->points.size() * CLASSID_NUM * sizeof(unsigned int));
+			//we must set label_vec_vec_vec to zero again
+			memset(label_vec_vec_vec, 0 , 
+				config.images_num_for_pointcloud * source->points.size() * CLASSID_NUM * 
+				sizeof(unsigned int));
 
-
+#ifdef OpenMP 
+	#pragma omp parallel for
+#endif
 			for (auto que_idx = 0; que_idx < raw_images_color_vec_que.size(); que_idx++) {
 				for (auto idx = 0; idx < image_num; idx++) {
-					//add parsing label to raw image
-					//for (auto i = 0 ; i < raw_images_color_vec[idx].rows; i++) {
-						//for (auto j = 0 ; j < raw_images_color_vec[idx].cols; j++) {
-							////get class id
-							//auto id = parsing_images_color_vec[idx].at<cv::Vec3b>(i, j)[0];
-							//auto color = colorlist[id];
-							//auto raw_color = raw_images_color_vec[idx].at<cv::Vec3b>(i, j);
-
-							//for (auto k = 0; k < raw_images_color_vec[idx].channels(); k++) {
-								//raw_color[k] =
-									//static_cast<uchar>(std::min(static_cast<uchar>(color[ 2 - k] * MASK_VALUE + 
-										//raw_color[k] * (1 - MASK_VALUE)), uchar(255)));
-							//}
-							//raw_images_color_vec[idx].at<cv::Vec3b>(i, j) = raw_color;
-						//}
-					//}
-
 				//caculate camera_calibration to adapt to project_cloud_to_image_colored function
 					double intrinsics[4];
 					double distortion[5];
@@ -820,36 +909,32 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 					get_intrinsic_extrinsci_dis(camera_calibration[idx], intrinsics, 
 						distortion, extrinsic);
 
-					//project_cloud_to_image_colored
-					//project_cloud_to_image_colored(source, label_vec_vec,
-						//intrinsics, distortion, extrinsic, raw_images_color_vec[idx],
-						//parsing_images_color_vec[idx]);
-
 					//transform each poincloud to the position at pointcloud_pos_at_que
 					Eigen::Matrix4d delta_mat = 
 						odom_mat_que[que_idx].inverse() * odom_mat_que[pointcloud_pos_at_que];
+					pcl::PointCloud<PointType>::Ptr source_tran(new pcl::PointCloud<PointType>);
+
 					pcl::transformPointCloud(*source, *source_tran, delta_mat);
 
-					project_cloud_to_image_colored(source_tran, label_vec_vec,
+					project_cloud_to_image_colored(source_tran, label_vec_vec_vec, que_idx,
 						intrinsics, distortion, extrinsic, raw_images_color_vec_que[que_idx][idx],
 						parsing_images_color_vec_que[que_idx][idx], label_mask, true);
 				}
-
-#ifdef VIEW_IMAGE
-				//cv::imshow("pasring", raw_images_color_vec[0]);
-				//cv::waitKey(1);
-
+#ifndef OpenMP
+	#ifdef VIEW_IMAGE
 				ShowManyImages("image", 5, 
 					raw_images_color_vec_que[que_idx][0], 
 					raw_images_color_vec_que[que_idx][1],
 					raw_images_color_vec_que[que_idx][2], 
 					raw_images_color_vec_que[que_idx][3], 
 					raw_images_color_vec_que[que_idx][4]);
+	#endif
 #endif
 			}
 
 			//choose the max num class id of each point of the source
-			caculate_label(label_vec_vec, label_point_vec[frame_num]);
+			caculate_label(label_vec_vec_vec, label_point_vec[frame_num],
+				config.images_num_for_pointcloud);
 			
 			//set the point label to moving_object whose's label_mask is true
 			for (auto iii = 0; iii < label_mask.size(); iii++) {
@@ -883,12 +968,17 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 				3, "cloud");
 			viewer.spinOnce(10);
 #endif
-			LOG(INFO) << "Time used: " << (clock() - start_time) * 1000 / CLOCKS_PER_SEC << "ms";
+			auto end_time = std::chrono::high_resolution_clock::now();
+			LOG(INFO) << "Time used: " << std::chrono::duration_cast<std::chrono::duration<double> >(
+				end_time - start_time).count() << "s\n";
 
 			//delete the two dim pointer array
-			delete[] label_vec_vec;
-			label_vec_vec = NULL;
+			//delete[] label_vec_vec;
+			//label_vec_vec = NULL;
 
+			//delete the three dim pointer array
+			delete[] label_vec_vec_vec;
+			label_vec_vec_vec = NULL;
 		}
 		bag.close();
 

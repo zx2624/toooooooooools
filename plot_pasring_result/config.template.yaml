@@ -1,6 +1,7 @@
-bag_path : /media/horizon_ad/Elements/map_data/BeiJing/ShunYi/20181203/test
+bag_path : /media/horizon_ad/Elements/map_data/BeiJing/ShunYi/20181203/test_01
 raw_point_topic: /pandora_points
-label_point_topic: /pandora_points/label
+label_point_topic: /pandora_points/label_10_frames
+lidar_odom_topic: /pose_optimize/pandora/odom
 raw_image_topic:
 - /pandora_image0/compressed
 - /pandora_image1/compressed
@@ -14,3 +15,6 @@ parsing_image_topic:
 - /pandora_image2/segdet_track/compressed
 - /pandora_image3/segdet_track/compressed
 - /pandora_image4/segdet_track/compressed
+
+#The number that a pointcloud will be projected into images.
+images_num_for_pointcloud : 10

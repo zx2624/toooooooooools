@@ -1,35 +1,20 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(plot_image_pasring_results)
+project(cmp_cam_lidar_pd)
 
-#SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 ${CMAKE_CXX_FLAGS}")
-
-#For debug
-#SET(CMAKE_CXX_FLAGS "-std=c++11 -g ${CMAKE_CXX_FLAGS}")
-
-#For Visualization
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 -DVIEW_IMAGE -DVIEW_POINTCLOUD ${CMAKE_CXX_FLAGS}")
-#SET(CMAKE_CXX_FLAGS "-std=c++11 -g -DVIEW_IMAGE -DVIEW_POINTCLOUD ${CMAKE_CXX_FLAGS}")
+## Compile as C++11, supported in ROS Kinetic and newer
+add_compile_options(-std=c++11)
+add_compile_options(-g)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED
-		sensor_msgs
-		pcl_conversions
-		mapping_tools
-		rosbag)
+find_package(catkin REQUIRED)
 
-## System dependencies are found with CMake's conventions
-find_package(OpenCV 2.4 REQUIRED)
 find_package(PCL 1.7 REQUIRED)
 
-#For mutil thread
-#find_package(OpenMP)
-#if (OPENMP_FOUND)
-	#add_compile_options(-DOpenMP)
-	#set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-	#set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-#endif()
+## System dependencies are found with CMake's conventions
+# find_package(Boost REQUIRED COMPONENTS system)
+
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -117,8 +102,8 @@ find_package(PCL 1.7 REQUIRED)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES plot_image_pasring_results
+	 INCLUDE_DIRS include
+#  LIBRARIES cmp_cam_lidar_pd
 #  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
 )
@@ -130,15 +115,14 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
- ${catkin_INCLUDE_DIRS}
- ${OpenCV_INCLUDE_DIRS}
+ include
  ${PCL_INCLUDE_DIRS}
+ ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/plot_image_pasring_results.cpp
+#   src/${PROJECT_NAME}/cmp_cam_lidar_pd.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -149,7 +133,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node plot_image_pasring_results.cc)
+add_executable(${PROJECT_NAME}_node src/test.cc)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -163,13 +147,11 @@ add_executable(${PROJECT_NAME}_node plot_image_pasring_results.cc)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node
-   ${catkin_LIBRARIES}
-	 ${OpenCV_LIBRARIES}
-	 ${PCL_LIBRARIES}
-	 yaml-cpp
-	 glog
-	 gflags
- )
+  ${PCL_LIBRARIES}
+  ${catkin_LIBRARIES}
+	glog
+	gflags
+)
 
 #############
 ## Install ##
@@ -211,7 +193,7 @@ target_link_libraries(${PROJECT_NAME}_node
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_plot_image_pasring_results.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_cmp_cam_lidar_pd.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
