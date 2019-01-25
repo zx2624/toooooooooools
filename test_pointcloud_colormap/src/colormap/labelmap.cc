@@ -14,7 +14,11 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
+#ifdef Pandora
 typedef pcl::PointXYZRGBL PointType;
+#else
+typedef pcl::PointXYZI PointType;
+#endif
 typedef pcl::Label PointLable;
 typedef pcl::PointXYZRGB PointXYZRGB;
 
@@ -146,7 +150,7 @@ void labelmap(char* bag_file_path_, char* points_topic_name_, char* points_label
 		viewer.addPointCloud(show_cloud, "cloud");
 		viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE,
 			3, "cloud");
-		viewer.spinOnce(10);
+		viewer.spinOnce(100);
 
 		its++;
 		its_label++;

@@ -3,7 +3,7 @@
 // FILE:     plot_image_pasring_results.cc
 // ROLE:     TODO (some explanation)
 // CREATED:  2019-01-07 17:20:44
-// MODIFIED: 2019-01-25 16:11:29
+// MODIFIED: 2019-01-25 17:45:42
 #include <stdio.h>
 #include <stdarg.h>
 #include <time.h>
@@ -32,7 +32,7 @@
 #include <glog/logging.h>
 #include <gflags/gflags.h>
 
-typedef pcl::PointXYZRGBL PointType;
+typedef pcl::PointXYZI PointType;
 typedef pcl::Label PointLabel;
 typedef pcl::PointXYZRGB PointRGB;
 
@@ -189,11 +189,17 @@ void get_intrinsic_extrinsci_dis(const CameraCalibration &camera_calibration,
 	intrinsics[3] = camera_calibration.cameraK.at<double>(1, 2);
 
 	//because the images hase been undistored
-	distortion[0] = 0;
-	distortion[1] = 0;
-	distortion[2] = 0;
-	distortion[3] = 0;
-	distortion[4] = 0;
+	//distortion[0] = 0;
+	//distortion[1] = 0;
+	//distortion[2] = 0;
+	//distortion[3] = 0;
+	//distortion[4] = 0;
+
+	distortion[0] = camera_calibration.cameraD.at<double>(0);
+	distortion[1] = camera_calibration.cameraD.at<double>(1);
+	distortion[2] = camera_calibration.cameraD.at<double>(2);
+	distortion[3] = camera_calibration.cameraD.at<double>(3);
+	distortion[4] = camera_calibration.cameraD.at<double>(4);
 
 	Eigen::Quaternion<double> rotation(
 		camera_calibration.cameraR[0],
@@ -215,7 +221,7 @@ void get_intrinsic_extrinsci_dis(const CameraCalibration &camera_calibration,
 	extrinsics[4] = camera_calibration.cameraT[1];
 	extrinsics[5] = camera_calibration.cameraT[2];
 
-	convert_inv_extrinsics(extrinsics, extrinsics);
+	//convert_inv_extrinsics(extrinsics, extrinsics);
 }
 
 void ShowManyImages(std::string title, int nArgs, ...) {
@@ -419,8 +425,8 @@ bool project_cloud_to_image_colored(pcl::PointCloud<PointType>::Ptr cloud,
 
 		//get id
 		auto class_id  = parsing_image.at<cv::Vec3b>(y, x)[0];
-		
-		//if is INVALID_CLASS_ID
+
+		//if is INVALID_CLASS_ID 
 		if (class_id == INVALID_CLASS_ID) continue;
 
 		//filter those points whose label is moving_object
@@ -531,18 +537,19 @@ void caculate_label_mask(unsigned int* label_vec_vec_vec, unsigned int first_dim
 void plot_parsing_result_from_mutilframe(const Config &config, 
 	const CameraCalibration camera_calibration[]) {
 	const double EPS = 0.01;
-	const double MAX_TIME_DIFF_Pandora_Lidar_IMAGE = 0.10;
+	const int IMG_RATE_DIV_LIDAR = 3;
+	const double MAX_TIME_DIFF_Lidar_IMAGE = 0.1 / IMG_RATE_DIV_LIDAR / 2;
 	//vector of bag file
 	std::vector<std::string> vec_bag_files;
 	//get all bag files at bag_path
 	horizon::mapping::getAllBagFilesPath(config.bag_path, vec_bag_files);
 
-
 #ifdef VIEW_POINTCLOUD
 	pcl::visualization::PCLVisualizer viewer("viewer");
 	viewer.addCoordinateSystem(3.0 ,"coor");
 	viewer.initCameraParameters();
-	viewer.setCameraPosition(0.0, 0.0, 100.0, 0.0, -1.0, 0.0);
+	//viewer.setCameraPosition(0.0, 0.0, 100.0, 0.0, -1.0, 0.0);
+	viewer.setCameraPosition(0.0, 0.0, 100.0, 0.0, 1.0, 0.0);
 	//viewer.setFullScreen(true);
 #endif
 
@@ -655,12 +662,12 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 				auto odom_ptr
 					= odom_it_vec[0]->instantiate<nav_msgs::Odometry>();
 				if (raw_image_ptr->header.stamp.toSec() - odom_ptr->header.stamp.toSec()
-						> MAX_TIME_DIFF_Pandora_Lidar_IMAGE) {
+						> MAX_TIME_DIFF_Lidar_IMAGE) {
 					odom_it_vec.pop_front();
 					point_it_vec.pop_front();
 				}
 				else if (odom_ptr->header.stamp.toSec() - raw_image_ptr->header.stamp.toSec()
-					> MAX_TIME_DIFF_Pandora_Lidar_IMAGE) {
+					> MAX_TIME_DIFF_Lidar_IMAGE) {
 					for (auto iiii = 0; iiii < image_num; iiii++) {
 						raw_images_it_vec_vec[iiii].pop_front();	
 						parsing_images_it_vec_vec[iiii].pop_front();	
@@ -680,8 +687,10 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 				max_common_frame = odom_it_vec.size();
 			}
 			for (auto i = 0; i < image_num; i++) {
-				if (max_common_frame > raw_images_it_vec_vec[i].size()) { 
-					max_common_frame = raw_images_it_vec_vec[i].size();
+				if (max_common_frame > 1 + raw_images_it_vec_vec[i].size() /
+						IMG_RATE_DIV_LIDAR) { 
+					max_common_frame = 1 + raw_images_it_vec_vec[i].size() /
+						IMG_RATE_DIV_LIDAR;
 				}
 			}
 		}
@@ -718,6 +727,7 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 		auto pointcloud_pos_at_que = 0;
 
 		for (auto frame_num = 0; frame_num < max_common_frame; frame_num++) {
+			LOG(INFO) << "Frame " << frame_num << "/" << max_common_frame;
 			auto  start_time = std::chrono::high_resolution_clock::now();
 
 			pcl::PointCloud<PointType>::Ptr source(new pcl::PointCloud<PointType>);
@@ -739,7 +749,7 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 			label_point_stamp[frame_num] = point_ptr->header;
 
 			std::cout.precision(2);
-			std::cout << "[point, im0, im1, im2, im3, im4, od]:" << std::fixed
+			std::cout << "[point, im, od]:" << std::fixed
 				<< point_ptr->header.stamp.toSec();
 
 			std::vector<cv::Mat> raw_images_color_vec(image_num);
@@ -751,11 +761,11 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 						&& local_i < max_common_frame; local_i++) {
 					for (auto i = 0; i < image_num; i++) {
 						auto raw_image_ptr = 
-							raw_images_it_vec_vec[i][local_i]->
+							raw_images_it_vec_vec[i][local_i * IMG_RATE_DIV_LIDAR]->
 							instantiate<sensor_msgs::CompressedImage>();
 
 						auto parsing_image_ptr = 
-							parsing_images_it_vec_vec[i][local_i]->
+							parsing_images_it_vec_vec[i][local_i * IMG_RATE_DIV_LIDAR]->
 							instantiate<sensor_msgs::CompressedImage>();
 
 						//convert from ros msg
@@ -798,11 +808,11 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 				if (frame_num + half_num < max_common_frame) {
 					for (auto i = 0; i < image_num; i++) {
 						auto raw_image_ptr = 
-							raw_images_it_vec_vec[i][frame_num + config.images_num_for_pointcloud / 2]->
+							raw_images_it_vec_vec[i][(frame_num + half_num) * IMG_RATE_DIV_LIDAR]->
 							instantiate<sensor_msgs::CompressedImage>();
 
 						auto parsing_image_ptr = 
-							parsing_images_it_vec_vec[i][frame_num + config.images_num_for_pointcloud / 2]->
+							parsing_images_it_vec_vec[i][(frame_num + half_num) * IMG_RATE_DIV_LIDAR]->
 							instantiate<sensor_msgs::CompressedImage>();
 
 						//convert from ros msg
@@ -866,7 +876,7 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 			std::vector<cv::Mat> raw_images_temp(image_num);
 
 			//TODO for debug
-			std::cout << "Debug_1:\n";
+			std::cout << "Time:\n";
 			for (auto idx = 0; idx < image_num; idx++) {
 				//caculate camera_calibration to adapt to project_cloud_to_image_colored function
 				double intrinsics[4];
@@ -889,17 +899,20 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 				//std::cout << " " << point_ptr->header.stamp.toSec() - 
 				std::cout << " " << point_ptr->header.stamp.toSec() -
 					raw_images_stamp_vec_que[pointcloud_pos_at_que][idx];
+				//TODO For debug 
+				//if (fabs(point_ptr->header.stamp.toSec() - 
+							//raw_images_stamp_vec_que[pointcloud_pos_at_que][idx]) >
+							//MAX_TIME_DIFF_Lidar_IMAGE * 2) {
+					//LOG(FATAL) << "ERROR!!!\n";
+				//}
 			}
 			//TODO for debug
 			std::cout << "\n";
 
 #ifdef VIEW_IMAGE
-			ShowManyImages("image_2", 5, 
-				raw_images_temp[0], 
-				raw_images_temp[1],
-				raw_images_temp[2], 
-				raw_images_temp[3], 
-				raw_images_temp[4]);
+			cv::namedWindow("image_1", 1);
+			cv::imshow("image_1", raw_images_temp[0]);
+			cv::waitKey(1);
 #endif
 
 			//choose the max num class id of each point of the source
@@ -911,7 +924,7 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 				sizeof(unsigned int));
 
 			//TODO for debug
-			std::cout << "Debug:\n";
+			std::cout << "Time_2:\n";
 #ifdef OpenMP 
 	#pragma omp parallel for
 #endif
@@ -939,17 +952,14 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 				}
 #ifndef OpenMP
 				//TODO for debug
-				//std::cout << " " << point_ptr->header.stamp.toSec() - 
-				std::cout << " " << odom_stamp_que[pointcloud_pos_at_que] -
-					point_ptr->header.stamp.toSec();
-					//raw_images_stamp_vec_que[que_idx][0];
+				std::cout << " " << point_ptr->header.stamp.toSec() - 
+				//std::cout << " " << odom_stamp_que[pointcloud_pos_at_que] -
+				//point_ptr->header.stamp.toSec();
+				raw_images_stamp_vec_que[que_idx][0];
 	#ifdef VIEW_IMAGE
-				ShowManyImages("image", 5, 
-					raw_images_color_vec_que[que_idx][0], 
-					raw_images_color_vec_que[que_idx][1],
-					raw_images_color_vec_que[que_idx][2], 
-					raw_images_color_vec_que[que_idx][3], 
-					raw_images_color_vec_que[que_idx][4]);
+			cv::namedWindow("image_2", 1);
+			cv::imshow("image_2", raw_images_color_vec_que[que_idx][0]);
+			cv::waitKey(1);
 	#endif
 #endif
 			}
@@ -1091,6 +1101,87 @@ int get_camera_params(const std::string contents, CameraCalibration calibs[]) {
   return 0;
 }
 
+int get_camera_params_no_pandora(const std::string contents,
+		CameraCalibration calibs[]) {
+  std::cout << "Parse Camera Calibration..." << std::endl;
+  if (contents.empty()) {
+    std::cout << "string is empty" << std::endl;
+    return -1;
+  }
+
+  YAML::Node yn = YAML::LoadFile(contents);
+
+  std::cout << "**************ParseCameraCalibration contents: \n" << contents << std::endl;
+
+  cv::Mat intrinsicK, intrinsicD;
+    // get intrinsic
+    if (yn["intrinsic"].IsDefined()) {
+			for (auto i = 0; i < yn["intrinsic"].size(); i++) {	
+				if (yn["intrinsic"][i]["frame"].IsDefined() && 
+					yn["intrinsic"][i]["frame"].as<std::string>() == "/sensor/hugo1/image1/compressed") {
+
+					intrinsicK = cv::Mat::zeros(3, 3, CV_64FC1);
+					intrinsicK.at<double>(0) = yn["intrinsic"][i]["cameraMatrix"]["ax"].as<double>();
+					intrinsicK.at<double>(2) = yn["intrinsic"][i]["cameraMatrix"]["ux"].as<double>();
+					intrinsicK.at<double>(4) = yn["intrinsic"][i]["cameraMatrix"]["ay"].as<double>();
+					intrinsicK.at<double>(5) = yn["intrinsic"][i]["cameraMatrix"]["uy"].as<double>();
+
+					intrinsicK.at<double>(8) = 1;
+
+					calibs[0].cameraK = intrinsicK;
+
+					intrinsicD = cv::Mat::zeros(yn["intrinsic"][i]["distCoeffs"].size(), 1, CV_64FC1);
+
+					for (int j = 0; j < yn["intrinsic"][i]["distCoeffs"].size(); ++j) {
+						intrinsicD.at<double>(j) = yn["intrinsic"][i]["distCoeffs"][j].as<double>();
+					}
+					calibs[0].cameraD = intrinsicD;
+					break;
+				}
+			}
+    } 
+		else {
+      printf("invalid intrinsicFile content\n");
+      return -1;
+    }
+
+    if (yn["extrinsic"].IsDefined()) {
+    // get camera
+			for (auto i = 0; i < yn["extrinsic"].size(); i++) {	
+				if (yn["extrinsic"][i]["from"].IsDefined() && 
+					yn["extrinsic"][i]["from"].as<std::string>() == "/sensor/velodyne/points" &&
+					yn["extrinsic"][i]["to"].IsDefined() && 
+					yn["extrinsic"][i]["to"].as<std::string>() == "/sensor/hugo1/image1/compressed") {
+
+					calibs[0].cameraT.push_back(yn["extrinsic"][i]["translation"]["x"].as<double>());
+					calibs[0].cameraT.push_back(yn["extrinsic"][i]["translation"]["y"].as<double>());
+					calibs[0].cameraT.push_back(yn["extrinsic"][i]["translation"]["z"].as<double>());
+					
+					double roll = yn["extrinsic"][i]["rotation"]["r"].as<double>();
+					double pitch = yn["extrinsic"][i]["rotation"]["p"].as<double>();
+					double yaw = yn["extrinsic"][i]["rotation"]["y"].as<double>();
+
+					Eigen::Matrix3d mat = Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitZ()) *
+						Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
+						Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()).matrix();
+					Eigen::Quaterniond quat;
+					quat = mat;
+
+					calibs[0].cameraR.push_back(quat.w());
+					calibs[0].cameraR.push_back(quat.x());
+					calibs[0].cameraR.push_back(quat.y());
+					calibs[0].cameraR.push_back(quat.z());
+					break;
+				}
+			} 
+		}
+		else {
+      printf("invalid intrinsicFile content\n");
+      return -1;
+    }
+  return 0;
+}
+
 
 void load_config(char * file, Config& config) {
 	YAML::Node yaml = YAML::LoadFile(file);
@@ -1127,8 +1218,10 @@ int main(int argc, char** argv) {
 
 	Config config;
 	load_config(argv[1], config);
-	CameraCalibration camera_calibration[5];
-	get_camera_params(std::string(argv[2]), camera_calibration);
+
+	CameraCalibration camera_calibration[1];
+
+	get_camera_params_no_pandora(std::string(argv[2]), camera_calibration);
 
 	//plot_parsing_result(config, camera_calibration);
 	plot_parsing_result_from_mutilframe(config, camera_calibration);
