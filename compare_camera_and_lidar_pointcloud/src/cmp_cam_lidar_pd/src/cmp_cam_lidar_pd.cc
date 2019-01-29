@@ -3,7 +3,7 @@
 // FILE:     cmp_cam_lidar_pd.cc
 // ROLE:     TODO (some explanation)
 // CREATED:  2019-01-25 15:16:42
-// MODIFIED: 2019-01-29 15:54:58
+// MODIFIED: 2019-01-29 17:22:20
 #include <cmp_cam_lidar_pd/cmp_cam_lidar_pd.h>
 #include <cmp_cam_lidar_pd/point_type.h>
 
@@ -224,7 +224,7 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 
 	std::ofstream ofs(config.result_file);
 	ofs << 
-		"bag_file [mean_x, mean_y, mean_z] [std_x, std_y, std_z] [valid_size/all_size] [cov, max_dis]\n"; 
+		"bag_file [mean_x, mean_y, mean_z] [std_x, std_y, std_z] [valid_size/all_size] [cov, max_dis, leaf_size, min_pts_each_voxel]\n"; 
 #ifdef VIEW_POINTCLOUD
 	pcl::PointCloud<PointRGB>::Ptr lidar_pd_rgb(new pcl::PointCloud<PointRGB>);
 	pcl::PointCloud<PointRGB>::Ptr cam_pd_rgb(new pcl::PointCloud<PointRGB>);
@@ -393,6 +393,11 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 				cam_pd->resize(cam_pd_ex->size());
 				for (auto &temp : cam_pd_ex->points) {
 					if (temp.z < config.min_z_value) continue;
+
+					if (fabs(temp.x) < 2 && fabs(temp.y) < 2 && fabs(temp.z) < 2) continue;
+
+					if (sqrt(pow(temp.x, 2) + pow(temp.y, 2) + pow(temp.z, 2)) > config.max_dis) continue;
+
 					cam_pd->points[cnt].x = temp.x;
 					cam_pd->points[cnt].y = temp.y;
 					cam_pd->points[cnt].z = temp.z;
@@ -463,7 +468,7 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 
 					auto rel = ex_cam_lidar * t_cam_lidar * vec;
 
-					if (sqrt(pow(rel(0), 2) + pow(rel(1), 2) + pow(rel(2), 2)) > config.max_dis) continue;
+					//if (sqrt(pow(rel(0), 2) + pow(rel(1), 2) + pow(rel(2), 2)) > config.max_dis) continue;
 
 					PointLidar data;
 					data.x = rel(0);
@@ -557,11 +562,11 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 			viewer.removeText3D("mean_y");
 			viewer.removeText3D("mean_z");
 
-			viewer.addText3D("mean_x:" + std::to_string(mean_dis[0]), pcl::PointXYZ(20, 0, 30), 1, 
+			viewer.addText3D("mean_x: " + std::to_string(mean_dis[0]), pcl::PointXYZ(25, 0, 30), 1, 
 				0, 255, 255, "mean_x");
-			viewer.addText3D("mean_y:" + std::to_string(mean_dis[1]), pcl::PointXYZ(20, 0, 25), 1, 
+			viewer.addText3D("mean_y: " + std::to_string(mean_dis[1]), pcl::PointXYZ(25, 0, 25), 1, 
 				0, 255, 255, "mean_y");
-			viewer.addText3D("mean_z:" + std::to_string(mean_dis[2]), pcl::PointXYZ(20, 0, 20), 1, 
+			viewer.addText3D("mean_z: " + std::to_string(mean_dis[2]), pcl::PointXYZ(25, 0, 20), 1, 
 				0, 255, 255, "mean_z");
 
 			viewer.spinOnce(20);
@@ -580,7 +585,8 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 			" [" << mean_vec[0] << ", " << mean_vec[1] << ", " << mean_vec[2] << "]" 
 			" [" << std_vec[0] << ", " << std_vec[1] << ", " << std_vec[2] << "]" 
 			" [" << valid_size << "/" << mean_vec_vec.size() << "]"
-			" [" << config.cam_pt_cov << " " << config.max_dis << "]\n"; 
+			" [" << config.cam_pt_cov << " " << config.max_dis << " "<< config.leaf_size << " " << config.min_pts_each_voxel
+			<< "]\n"; 
 
 		//output to cout
 
@@ -589,7 +595,8 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 			" [" << mean_vec[0] << ", " << mean_vec[1] << ", " << mean_vec[2] << "]" 
 			" [" << std_vec[0] << ", " << std_vec[1] << ", " << std_vec[2] << "]" 
 			" [" << valid_size << "/" << mean_vec_vec.size() << "]"
-			" [" << config.cam_pt_cov << " " << config.max_dis << "]\n"; 
+			" [" << config.cam_pt_cov << " " << config.max_dis << " "<< config.leaf_size << " " << config.min_pts_each_voxel
+			<< "]\n"; 
 
 		bag.close();
 	}
