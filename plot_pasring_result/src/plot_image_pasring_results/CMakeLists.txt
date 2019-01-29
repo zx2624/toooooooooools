@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(plot_image_pasring_results)
 
-#SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 ${CMAKE_CXX_FLAGS}")
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 ${CMAKE_CXX_FLAGS}")
 
 #For debug
 #SET(CMAKE_CXX_FLAGS "-std=c++11 -g ${CMAKE_CXX_FLAGS}")
 
 #For Visualization
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 -DVIEW_IMAGE -DVIEW_POINTCLOUD ${CMAKE_CXX_FLAGS}")
+#SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 -DVIEW_IMAGE -DVIEW_POINTCLOUD ${CMAKE_CXX_FLAGS}")
 #SET(CMAKE_CXX_FLAGS "-std=c++11 -g -DVIEW_IMAGE -DVIEW_POINTCLOUD ${CMAKE_CXX_FLAGS}")
 
 ## Find catkin macros and libraries
@@ -24,12 +24,12 @@ find_package(OpenCV 2.4 REQUIRED)
 find_package(PCL 1.7 REQUIRED)
 
 #For mutil thread
-#find_package(OpenMP)
-#if (OPENMP_FOUND)
-	#add_compile_options(-DOpenMP)
-	#set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-	#set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-#endif()
+find_package(OpenMP)
+if (OPENMP_FOUND)
+	add_compile_options(-DOpenMP)
+	set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -150,6 +150,7 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}_node plot_image_pasring_results.cc)
+add_executable(${PROJECT_NAME}_no_pandora plot_image_pasring_results_no_pandora.cc)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -163,6 +164,14 @@ add_executable(${PROJECT_NAME}_node plot_image_pasring_results.cc)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node
+   ${catkin_LIBRARIES}
+	 ${OpenCV_LIBRARIES}
+	 ${PCL_LIBRARIES}
+	 yaml-cpp
+	 glog
+	 gflags
+ )
+target_link_libraries(${PROJECT_NAME}_no_pandora
    ${catkin_LIBRARIES}
 	 ${OpenCV_LIBRARIES}
 	 ${PCL_LIBRARIES}

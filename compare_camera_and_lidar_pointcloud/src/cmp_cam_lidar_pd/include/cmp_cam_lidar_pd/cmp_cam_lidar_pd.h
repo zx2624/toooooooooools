@@ -3,7 +3,7 @@
 // FILE:     cmp_cam_lidar_pd.h
 // ROLE:     TODO (some explanation)
 // CREATED:  2019-01-21 14:43:25
-// MODIFIED: 2019-01-24 14:56:48
+// MODIFIED: 2019-01-29 15:49:33
 
 #ifndef HORIZON_MAPPING_EVALUATION_H_
 #define HORIZON_MAPPING_EVALUATION_H_
@@ -39,9 +39,11 @@ namespace horizon {
 			class CmpCamLidarPd {
 			 public :
 				CmpCamLidarPd(const std::vector<HobotLabels>& label_vec, double cov, 
-					unsigned int min_line_pt_num, unsigned int min_plane_pt_num):
+					int min_line_pt_num, int min_plane_pt_num, double leaf_size, 
+					int min_pts_each_voxel):
 					label_vec_(label_vec), cov_(cov), min_line_pt_num_(min_line_pt_num), 
 					min_plane_pt_num_(min_plane_pt_num), mean_dis_(3, 0), std_dis_(3, 0), 
+					leaf_size_(leaf_size), min_pts_each_voxel_(min_pts_each_voxel),
 					cam_pd_(new typename pcl::PointCloud<PointCam>),
 					lidar_pd_(new typename pcl::PointCloud<PointLidar>){
 					//default value
@@ -107,6 +109,13 @@ namespace horizon {
 					}
 				}
 
+				std::vector<typename pcl::PointCloud<PointCam>::Ptr> getCamPdVec () {
+					return cam_pd_vec_;
+				}
+				std::vector<typename pcl::PointCloud<PointLidar>::Ptr> getLidarPdVec () {
+					return lidar_pd_vec_;
+				}
+
 			 protected :
 				bool divideCamPdUsingLabel();
 				bool divideLidarPdUsingLabel();
@@ -133,6 +142,9 @@ namespace horizon {
 
 				int min_line_pt_num_;
 				int min_plane_pt_num_;
+
+				double leaf_size_;
+				int min_pts_each_voxel_;
 			};
 
 		}

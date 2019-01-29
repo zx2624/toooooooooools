@@ -3,7 +3,7 @@
 // FILE:     plot_image_pasring_results.cc
 // ROLE:     TODO (some explanation)
 // CREATED:  2019-01-07 17:20:44
-// MODIFIED: 2019-01-25 16:11:29
+// MODIFIED: 2019-01-25 19:57:55
 #include <stdio.h>
 #include <stdarg.h>
 #include <time.h>
@@ -554,10 +554,11 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 		rosbag::View odoms_view(bag, rosbag::TopicQuery(config.lidar_odom_topic));
 
 		//pointcloud iterator vector
-		std::deque<rosbag::View::iterator> point_it_vec(points_view.size());
+		//std::deque<rosbag::View::iterator> point_it_vec(points_view.size());
+		std::deque<rosbag::View::iterator> point_it_vec;
 
 		//odom iterator vector
-		std::deque<rosbag::View::iterator> odom_it_vec(odoms_view.size());
+		std::deque<rosbag::View::iterator> odom_it_vec;
 
 		//Prepare for mutilthread to read rosbag data.
 		rosbag::View::iterator points_view_iter = points_view.begin();
@@ -583,12 +584,12 @@ void plot_parsing_result_from_mutilframe(const Config &config,
 		{
 			auto idx = 0;
 			for (;points_view_iter != points_view.end(); points_view_iter++) {
-				point_it_vec[idx++] = points_view_iter;
+				point_it_vec.push_back(points_view_iter);
 			}
 
 			idx = 0;
 			for (;odom_view_iter != odoms_view.end(); odom_view_iter++) {
-				odom_it_vec[idx++] = odom_view_iter;
+				odom_it_vec.push_back(odom_view_iter);
 			}
 		}
 

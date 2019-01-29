@@ -2,15 +2,23 @@ cmake_minimum_required(VERSION 2.8.3)
 project(cmp_cam_lidar_pd)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
-add_compile_options(-g)
+#SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 ${CMAKE_CXX_FLAGS}") 
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 -DVIEW_POINTCLOUD  ${CMAKE_CXX_FLAGS}") 
+#SET(CMAKE_CXX_FLAGS "-std=c++11 -g -DVIEW_POINTCLOUD  ${CMAKE_CXX_FLAGS}") 
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED
+		rosbag
+		sensor_msgs
+		pcl_conversions
+		nav_msgs
+		mapping_tools
+		lidar_motion_compensation
+		)
 
-find_package(PCL 1.7 REQUIRED)
+find_package(PCL)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -133,7 +141,8 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node src/test.cc)
+#add_executable(test_node src/test.cc)
+add_executable(${PROJECT_NAME}_node src/cmp_cam_lidar_pd.cc)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -146,11 +155,20 @@ add_executable(${PROJECT_NAME}_node src/test.cc)
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
+#target_link_libraries(test_node
+	#${PCL_LIBRARIES}
+	#glog
+	#gflags
+#)
+
+MESSAGE("DEBUG------------------------- ${PCL_LIBRARIES}")
+
 target_link_libraries(${PROJECT_NAME}_node
-  ${PCL_LIBRARIES}
-  ${catkin_LIBRARIES}
+	${PCL_LIBRARIES}
+	${catkin_LIBRARIES}
 	glog
 	gflags
+	yaml-cpp
 )
 
 #############

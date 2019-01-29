@@ -3,14 +3,18 @@
 // FILE:     cmp_cam_lidar_pd.hpp
 // ROLE:     TODO (some explanation)
 // CREATED:  2019-01-21 19:31:05
-// MODIFIED: 2019-01-24 15:06:09
+// MODIFIED: 2019-01-29 15:50:30
 #ifndef HORIZON_MAPPING_EVALUATION_HPP_
+#define HORIZON_MAPPING_EVALUATION_HPP_
 #include <cmp_cam_lidar_pd/cmp_cam_lidar_pd.h>
 
 #include <pcl/ModelCoefficients.h>
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/impl/voxel_grid.hpp>
+#include <pcl/filters/statistical_outlier_removal.h>
 
 #include <glog/logging.h>
 #include <gflags/gflags.h>
@@ -39,6 +43,10 @@ namespace horizon {
 
 				//for each label in label_vec_
 				for (auto label_idx = 0; label_idx < label_vec_.size(); label_idx++) {
+					if (lidar_pd_vec_[label_idx]->size() < min_line_pt_num_ || 
+							lidar_pd_vec_[label_idx]->size() < min_plane_pt_num_ ||
+							cam_pd_vec_[label_idx]->size() <= 0) continue;
+
 					pcl::IndicesPtr k_indices(new std::vector<int>(min_line_pt_num_));
 					std::vector<float> k_sqr_dis(min_line_pt_num_);
 
@@ -198,6 +206,9 @@ namespace horizon {
 				divideLidarPdUsingLabel();
 				//set the kdtree
 				for (auto i = 0; i < lidar_pd_vec_.size(); i++) {
+					//if (lidar_pd_vec_[i]->size() <= 0) continue;
+					if (lidar_pd_vec_[i]->size() < min_line_pt_num_ ||
+							lidar_pd_vec_[i]->size() < min_plane_pt_num_) continue;
 					lidar_kd_tree_vec_[i]->setInputCloud(lidar_pd_vec_[i]);
 				}
 			}
@@ -208,20 +219,43 @@ namespace horizon {
 					LOG(FATAL) << "cam_pd_ size is 0! You must setCamPd() first.";
 					return false;
 				}
+				pcl::VoxelGrid<PointCam> voxel;
+				voxel.setLeafSize(leaf_size_, leaf_size_, leaf_size_);
+				voxel.setMinimumPointsNumberPerVoxel(min_pts_each_voxel_);
+
+				//pcl::StatisticalOutlierRemoval<PointCam> sor;
+				//sor.setMeanK (20);
+				//sor.setStddevMulThresh (1.0);
+
 				for (auto cam_idx = 0; cam_idx < cam_pd_->size(); cam_idx++) {
 					auto temp = cam_pd_->points[cam_idx];
+					//double cov_raw = temp.cov[2];
+					//float cov_raw = temp.cov;
+					float cov_raw = temp.normal[1];
+
+					if (cov_raw > cov_) continue;
+
 					//get Z's cov = z^4 * cov(z)
 					auto depth = temp.z;
 					depth *= depth;
 					depth *= depth;
-					auto cov = depth * temp.cov[2];
+					//double cov = depth * temp.cov[2];
+					float cov = depth * cov_raw;
 					if (cov > cov_) continue;
-					auto label = static_cast<HobotLabels>(temp.label);
+					//auto label = static_cast<HobotLabels>(temp.label);
+					auto label = static_cast<HobotLabels>(temp.normal[0]);
+
 					for (auto label_idx = 0; label_idx < label_vec_.size(); label_idx++) {
 						if (label == label_vec_[label_idx]) {
 							cam_pd_vec_[label_idx]->push_back(temp);
 						}
 					}
+				}
+				for (auto label_idx = 0; label_idx < label_vec_.size(); label_idx++) {
+					voxel.setInputCloud(cam_pd_vec_[label_idx]);
+					voxel.filter(*cam_pd_vec_[label_idx]);
+					//sor.setInputCloud (cam_pd_vec_[label_idx]);
+					//sor.filter(*cam_pd_vec_[label_idx]);
 				}
 			}
 
