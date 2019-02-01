@@ -3,7 +3,7 @@
 // FILE:     cmp_cam_lidar_pd.cc
 // ROLE:     TODO (some explanation)
 // CREATED:  2019-01-25 15:16:42
-// MODIFIED: 2019-01-29 17:22:20
+// MODIFIED: 2019-01-30 13:25:50
 #include <cmp_cam_lidar_pd/cmp_cam_lidar_pd.h>
 #include <cmp_cam_lidar_pd/point_type.h>
 
@@ -59,7 +59,8 @@ const int colorlist[24][3] = {
     {200, 200, 200},
     {220, 20, 60},
     {0, 0, 70},
-    {0, 0, 142},
+    //{0, 0, 142},
+    {0, 255, 0},
     {70, 70, 70},
     {190, 153, 153},
     {70, 130, 180},
@@ -73,6 +74,12 @@ const int colorlist[24][3] = {
     {102, 102, 156},
     {0, 0, 230}
   };
+
+enum CmpMethod {
+	PointToPoint = 0, 
+	PointToLine = 1,
+	PointToPlane = 2
+};
  
 class Config {
  public:
@@ -100,6 +107,8 @@ class Config {
 	double leaf_size;
 
 	int min_pts_each_voxel;
+
+	CmpMethod cmp_method;
 };
 
 void load_config(char *file, Config& config) {
@@ -132,7 +141,11 @@ void load_config(char *file, Config& config) {
 
 	config.leaf_size = yaml["leaf_size"].as<double>();
 	config.min_pts_each_voxel = yaml["min_pts_each_voxel"].as<double>();
+
+	config.cmp_method = static_cast<CmpMethod>(
+		yaml["cmp_method"].as<int>());
 }
+
 int get_camera_params_no_pandora(std::string contents,
 		Eigen::Matrix4d &ex_cam_lidar) {
   std::cout << "Parse Camera Calibration..." << std::endl;
@@ -396,7 +409,8 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 
 					if (fabs(temp.x) < 2 && fabs(temp.y) < 2 && fabs(temp.z) < 2) continue;
 
-					if (sqrt(pow(temp.x, 2) + pow(temp.y, 2) + pow(temp.z, 2)) > config.max_dis) continue;
+					if (sqrt(pow(temp.x, 2) + pow(temp.y, 2) + pow(temp.z, 2))
+						> config.max_dis) continue;
 
 					cam_pd->points[cnt].x = temp.x;
 					cam_pd->points[cnt].y = temp.y;
@@ -479,6 +493,25 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 					lidar_pd->push_back(data);
 				}
 			}
+#ifdef CmpLidarToLidar
+			//TODO for test
+			{
+				auto cnt = 0;
+				cam_pd->resize(lidar_pd->size());
+				for (auto &temp : lidar_pd->points) {
+
+					cam_pd->points[cnt].x = temp.x;
+					cam_pd->points[cnt].y = temp.y;
+					cam_pd->points[cnt].z = temp.z;
+					cam_pd->points[cnt].rgb = temp.rgb;
+
+					cam_pd->points[cnt].normal[0] = temp.label;
+					cam_pd->points[cnt].normal[1] = 0.0f;
+					cnt++;
+				}
+			}
+			//test end
+#endif
 
 			//compare cam and lidar pd
 			evaluation::CmpCamLidarPd<PointCam, PointLidar> cmp(
@@ -488,7 +521,21 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 			cmp.setCamPd(cam_pd); 
 			cmp.setLidarPd(lidar_pd);
 
-			cmp.cacPoint2Line();
+			switch (config.cmp_method) {
+				case PointToPoint:
+					cmp.cacPoint2Point();
+					break;
+				case PointToLine:
+					cmp.cacPoint2Line();
+					break;
+				case PointToPlane:
+					cmp.cacPoint2Plane();
+					break;
+				default:
+					LOG(FATAL) << "You must set correct cmp_method!";
+					return;
+			}
+
 			auto mean_dis = cmp.getMeanDis();
 			auto std_dis = cmp.getStdDis();
 
@@ -585,7 +632,8 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 			" [" << mean_vec[0] << ", " << mean_vec[1] << ", " << mean_vec[2] << "]" 
 			" [" << std_vec[0] << ", " << std_vec[1] << ", " << std_vec[2] << "]" 
 			" [" << valid_size << "/" << mean_vec_vec.size() << "]"
-			" [" << config.cam_pt_cov << " " << config.max_dis << " "<< config.leaf_size << " " << config.min_pts_each_voxel
+			" [" << config.cam_pt_cov << " " << config.max_dis << " "<< config.leaf_size 
+			<< " " << config.min_pts_each_voxel
 			<< "]\n"; 
 
 		//output to cout
@@ -595,7 +643,8 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 			" [" << mean_vec[0] << ", " << mean_vec[1] << ", " << mean_vec[2] << "]" 
 			" [" << std_vec[0] << ", " << std_vec[1] << ", " << std_vec[2] << "]" 
 			" [" << valid_size << "/" << mean_vec_vec.size() << "]"
-			" [" << config.cam_pt_cov << " " << config.max_dis << " "<< config.leaf_size << " " << config.min_pts_each_voxel
+			" [" << config.cam_pt_cov << " " << config.max_dis << " "<< config.leaf_size 
+			<< " " << config.min_pts_each_voxel
 			<< "]\n"; 
 
 		bag.close();

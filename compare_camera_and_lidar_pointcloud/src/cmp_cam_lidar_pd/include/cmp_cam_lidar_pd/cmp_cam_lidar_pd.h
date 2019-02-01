@@ -3,7 +3,7 @@
 // FILE:     cmp_cam_lidar_pd.h
 // ROLE:     TODO (some explanation)
 // CREATED:  2019-01-21 14:43:25
-// MODIFIED: 2019-01-29 15:49:33
+// MODIFIED: 2019-01-30 11:15:01
 
 #ifndef HORIZON_MAPPING_EVALUATION_H_
 #define HORIZON_MAPPING_EVALUATION_H_
@@ -61,6 +61,7 @@ namespace horizon {
 						lidar_kd_tree_vec_.push_back(lidar_tree_temp);
 					}
 			  }
+				bool cacPoint2Point();
 				bool cacPoint2Line();
 			  bool cacPoint2Plane();
 			  void setCamPd(typename pcl::PointCloud<PointCam>::Ptr);
@@ -72,8 +73,9 @@ namespace horizon {
 					auto cnt = 0;
 					for (auto j = 0; j < dis_vec_vec_.size(); j++) {
 						for (auto k = 0; k < dis_vec_vec_[j].size(); k++) {
-							//if dis_dir_vec_vec_ is not valid
-							if (dis_dir_vec_vec_[j][k].norm() < 0.01 ) continue;
+							//if dis_vec_vec_ is not valid
+							//if (dis_dir_vec_vec_[j][k].norm() < 0.01 ) continue;
+							if (dis_vec_vec_[j][k] < 0 ) continue;
 							mean_dis_[0] += dis_vec_vec_[j][k] * dis_dir_vec_vec_[j][k][0];
 							mean_dis_[1] += dis_vec_vec_[j][k] * dis_dir_vec_vec_[j][k][1];
 							mean_dis_[2] += dis_vec_vec_[j][k] * dis_dir_vec_vec_[j][k][2];
@@ -88,8 +90,9 @@ namespace horizon {
 					auto cnt = 0;
 					for (auto j = 0; j < dis_vec_vec_.size(); j++) {
 						for (auto k = 0; k < dis_vec_vec_[j].size(); k++) {
-							//if dis_dir_vec_vec_ is not valid
-							if (dis_dir_vec_vec_[j][k].norm() < 0.01 ) continue;
+							//if dis_vec_vec_ is not valid
+							//if (dis_dir_vec_vec_[j][k].norm() < 0.01 ) continue;
+							if (dis_vec_vec_[j][k] < 0 ) continue;
 
 							std_dis_[0] += pow(dis_vec_vec_[j][k] * dis_dir_vec_vec_[j][k][0] - mean_dis_[0], 2);
 							std_dis_[1] += pow(dis_vec_vec_[j][k] * dis_dir_vec_vec_[j][k][1] - mean_dis_[1], 2);
@@ -104,7 +107,7 @@ namespace horizon {
 
 				void resetData() {
 					for (auto i = 0; i < label_vec_.size(); i++) { 
-						dis_vec_vec_[i].resize(cam_pd_vec_[i]->size(), 0);
+						dis_vec_vec_[i].resize(cam_pd_vec_[i]->size(), -1);
 						dis_dir_vec_vec_[i].resize(cam_pd_vec_[i]->size(), Eigen::Vector3f::Zero());
 					}
 				}

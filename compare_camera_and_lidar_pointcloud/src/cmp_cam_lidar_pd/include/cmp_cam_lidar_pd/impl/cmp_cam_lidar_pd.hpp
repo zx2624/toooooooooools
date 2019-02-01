@@ -3,7 +3,7 @@
 // FILE:     cmp_cam_lidar_pd.hpp
 // ROLE:     TODO (some explanation)
 // CREATED:  2019-01-21 19:31:05
-// MODIFIED: 2019-01-29 15:50:30
+// MODIFIED: 2019-01-30 11:53:46
 #ifndef HORIZON_MAPPING_EVALUATION_HPP_
 #define HORIZON_MAPPING_EVALUATION_HPP_
 #include <cmp_cam_lidar_pd/cmp_cam_lidar_pd.h>
@@ -23,6 +23,68 @@ namespace horizon {
 	namespace mapping {
 		namespace evaluation {
 
+			template<class PointCam, class PointLidar>
+			bool CmpCamLidarPd<PointCam, PointLidar>::cacPoint2Point() {
+				if (cam_pd_->size() <= 0) {
+					LOG(FATAL) << "cam_pd_ size is 0! You must setCamPd() first.";
+					return false;
+				}
+				if (lidar_pd_->size() <= 0) {
+					LOG(FATAL) << "lidar_pd_ size is 0! You must setLidarPd() first.";
+					return false;
+				}
+
+				resetData();
+
+				//for each label in label_vec_
+				for (auto label_idx = 0; label_idx < label_vec_.size(); label_idx++) {
+					if (lidar_pd_vec_[label_idx]->size() < min_line_pt_num_ || 
+							lidar_pd_vec_[label_idx]->size() < min_plane_pt_num_ ||
+							cam_pd_vec_[label_idx]->size() <= 0) continue;
+
+					//If the kdtree don't setInputCloud then continue
+					if (lidar_kd_tree_vec_[label_idx]->getInputCloud()->points.size() <= 0) continue;
+
+					//Only Find the most nearest point
+					pcl::IndicesPtr k_indices(new std::vector<int>(1));
+					std::vector<float> k_sqr_dis(1);
+
+					//for each point int cam_pd_vec_[label_idx]
+					for (auto cam_idx = 0; cam_idx < cam_pd_vec_[label_idx]->
+							points.size(); cam_idx++) {
+						//search nearest min_line_pt_num_ point 
+						auto cam_pt = cam_pd_vec_[label_idx]->points[cam_idx];
+						PointLidar cam_pt_temp;
+						cam_pt_temp.x = cam_pt.x;
+						cam_pt_temp.y = cam_pt.y;
+						cam_pt_temp.z = cam_pt.z;
+
+						auto ret = lidar_kd_tree_vec_[label_idx]->nearestKSearch(cam_pt_temp,
+							min_line_pt_num_, *k_indices, k_sqr_dis);
+						if (ret <= 0) continue;
+						
+						auto lidar_pt = lidar_pd_vec_[label_idx]->points[(*k_indices)[0]];
+
+						
+						auto dir =
+							Eigen::Vector3f(cam_pt.x - lidar_pt.x, 
+							cam_pt.y - lidar_pt.y, 
+							cam_pt.z - lidar_pt.z);
+
+						dis_vec_vec_[label_idx][cam_idx] = dir.norm();
+
+						dir.normalize();
+
+						//change dir's value to positive
+						dir[0] = fabs(dir[0]);
+						dir[1] = fabs(dir[1]);
+						dir[2] = fabs(dir[2]);
+						dis_dir_vec_vec_[label_idx][cam_idx] = dir;
+					}
+				}
+				cacMeanDis();
+				cacStdDis();
+			}
 			template<class PointCam, class PointLidar>
 			bool CmpCamLidarPd<PointCam, PointLidar>::cacPoint2Line() {
 				if (cam_pd_->size() <= 0) {
@@ -46,6 +108,9 @@ namespace horizon {
 					if (lidar_pd_vec_[label_idx]->size() < min_line_pt_num_ || 
 							lidar_pd_vec_[label_idx]->size() < min_plane_pt_num_ ||
 							cam_pd_vec_[label_idx]->size() <= 0) continue;
+
+					//If the kdtree don't setInputCloud then continue
+					if (lidar_kd_tree_vec_[label_idx]->getInputCloud()->points.size() <= 0) continue;
 
 					pcl::IndicesPtr k_indices(new std::vector<int>(min_line_pt_num_));
 					std::vector<float> k_sqr_dis(min_line_pt_num_);
@@ -131,8 +196,15 @@ namespace horizon {
 
 				//for each label in label_vec_
 				for (auto label_idx = 0; label_idx < label_vec_.size(); label_idx++) {
-					pcl::IndicesPtr k_indices(new std::vector<int>(min_line_pt_num_));
-					std::vector<float> k_sqr_dis(min_line_pt_num_);
+					if (lidar_pd_vec_[label_idx]->size() < min_line_pt_num_ || 
+							lidar_pd_vec_[label_idx]->size() < min_plane_pt_num_ ||
+							cam_pd_vec_[label_idx]->size() <= 0) continue;
+
+					//If the kdtree don't setInputCloud then continue
+					if (lidar_kd_tree_vec_[label_idx]->getInputCloud()->points.size() <= 0) continue;
+
+					pcl::IndicesPtr k_indices(new std::vector<int>(min_plane_pt_num_));
+					std::vector<float> k_sqr_dis(min_plane_pt_num_);
 
 					seg.setInputCloud(lidar_pd_vec_[label_idx]);
 					//for each point int cam_pd_vec_[label_idx]
@@ -251,12 +323,12 @@ namespace horizon {
 						}
 					}
 				}
-				for (auto label_idx = 0; label_idx < label_vec_.size(); label_idx++) {
-					voxel.setInputCloud(cam_pd_vec_[label_idx]);
-					voxel.filter(*cam_pd_vec_[label_idx]);
-					//sor.setInputCloud (cam_pd_vec_[label_idx]);
-					//sor.filter(*cam_pd_vec_[label_idx]);
-				}
+				//for (auto label_idx = 0; label_idx < label_vec_.size(); label_idx++) {
+					//voxel.setInputCloud(cam_pd_vec_[label_idx]);
+					//voxel.filter(*cam_pd_vec_[label_idx]);
+					////sor.setInputCloud (cam_pd_vec_[label_idx]);
+					////sor.filter(*cam_pd_vec_[label_idx]);
+				//}
 			}
 
 			template<class PointCam, class PointLidar>

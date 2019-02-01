@@ -4,6 +4,7 @@ project(cmp_cam_lidar_pd)
 ## Compile as C++11, supported in ROS Kinetic and newer
 #SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 ${CMAKE_CXX_FLAGS}") 
 SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 -DVIEW_POINTCLOUD  ${CMAKE_CXX_FLAGS}") 
+#SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 -DVIEW_POINTCLOUD -DCmpLidarToLidar ${CMAKE_CXX_FLAGS}") 
 #SET(CMAKE_CXX_FLAGS "-std=c++11 -g -DVIEW_POINTCLOUD  ${CMAKE_CXX_FLAGS}") 
 
 ## Find catkin macros and libraries
