@@ -3,7 +3,7 @@
 // FILE:     cmp_cam_lidar_pd.hpp
 // ROLE:     TODO (some explanation)
 // CREATED:  2019-01-21 19:31:05
-// MODIFIED: 2019-01-30 11:53:46
+// MODIFIED: 2019-02-01 11:19:31
 #ifndef HORIZON_MAPPING_EVALUATION_HPP_
 #define HORIZON_MAPPING_EVALUATION_HPP_
 #include <cmp_cam_lidar_pd/cmp_cam_lidar_pd.h>
@@ -323,12 +323,12 @@ namespace horizon {
 						}
 					}
 				}
-				//for (auto label_idx = 0; label_idx < label_vec_.size(); label_idx++) {
-					//voxel.setInputCloud(cam_pd_vec_[label_idx]);
-					//voxel.filter(*cam_pd_vec_[label_idx]);
-					////sor.setInputCloud (cam_pd_vec_[label_idx]);
-					////sor.filter(*cam_pd_vec_[label_idx]);
-				//}
+				for (auto label_idx = 0; label_idx < label_vec_.size(); label_idx++) {
+					voxel.setInputCloud(cam_pd_vec_[label_idx]);
+					voxel.filter(*cam_pd_vec_[label_idx]);
+					//sor.setInputCloud (cam_pd_vec_[label_idx]);
+					//sor.filter(*cam_pd_vec_[label_idx]);
+				}
 			}
 
 			template<class PointCam, class PointLidar>
