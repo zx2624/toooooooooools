@@ -3,7 +3,7 @@
 // FILE:     cmp_cam_lidar_pd.cc
 // ROLE:     TODO (some explanation)
 // CREATED:  2019-01-25 15:16:42
-// MODIFIED: 2019-01-30 13:25:50
+// MODIFIED: 2019-02-12 20:06:09
 #include <cmp_cam_lidar_pd/cmp_cam_lidar_pd.h>
 #include <cmp_cam_lidar_pd/point_type.h>
 
@@ -22,6 +22,7 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/visualization/pcl_visualizer.h> 
+#include <pcl/common/transforms.h>
 
 #include <mapping_tools/mapping_tools.h>
 
@@ -109,6 +110,8 @@ class Config {
 	int min_pts_each_voxel;
 
 	CmpMethod cmp_method;
+
+	int lidar_submap_frame_num;
 };
 
 void load_config(char *file, Config& config) {
@@ -144,6 +147,8 @@ void load_config(char *file, Config& config) {
 
 	config.cmp_method = static_cast<CmpMethod>(
 		yaml["cmp_method"].as<int>());
+	config.lidar_submap_frame_num = static_cast<CmpMethod>(
+		yaml["lidar_submap_frame_num"].as<int>());
 }
 
 int get_camera_params_no_pandora(std::string contents,
@@ -237,14 +242,14 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 
 	std::ofstream ofs(config.result_file);
 	ofs << 
-		"bag_file [mean_x, mean_y, mean_z] [std_x, std_y, std_z] [valid_size/all_size] [cov, max_dis, leaf_size, min_pts_each_voxel]\n"; 
+		"bag_file [mean_x, mean_y, mean_z] [std_x, std_y, std_z] [valid_size/all_size] [cov, max_dis, leaf_size, min_pts_each_voxel, lidar_submap_frame_num]\n"; 
 #ifdef VIEW_POINTCLOUD
 	pcl::PointCloud<PointRGB>::Ptr lidar_pd_rgb(new pcl::PointCloud<PointRGB>);
 	pcl::PointCloud<PointRGB>::Ptr cam_pd_rgb(new pcl::PointCloud<PointRGB>);
 	pcl::visualization::PCLVisualizer viewer("viewer");
 	viewer.addCoordinateSystem(1.0 ,"coor");
 	viewer.initCameraParameters();
-	viewer.setCameraPosition(0.0, 0.0, 10.0, 0.0, 1.0, 0.0);
+	viewer.setCameraPosition(0.0, 0.0, 30.0, 0.0, 1.0, 0.0);
 	//viewer.addArrow(pcl::PointXYZ(0, 0, 0), pcl::PointXYZ(0, 0, 10), 0, 255, 0, "s1");
 	//viewer.addArrow(pcl::PointXYZ(0, 0, 0), pcl::PointXYZ(0, 0, 20), 0, 255, 0, "s2");
 	viewer.addLine(pcl::PointXYZ(0, 0, 0), pcl::PointXYZ(0, 0, 30), 0, 255, 0, "s3");
@@ -374,6 +379,11 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 
 		//store each frame's result
 		std::vector<std::vector<double>> mean_vec_vec(cam_stamp_vec.size());
+			
+		int left_frame_num = config.lidar_submap_frame_num / 2;
+		int right_frame_num = left_frame_num;
+		if (left_frame_num > 0 && 
+				config.lidar_submap_frame_num % 2 == 0) left_frame_num--;
 
 #ifdef OpenMP
 	#pragma omp parallel for
@@ -381,22 +391,77 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 		for (auto i = 0; i < cam_stamp_vec.size(); i++) {
 			auto lidar_idx = lidar_aligned_vec[i];
 
-			auto lidar_pd_msg = lidar_points_it_vec[lidar_idx]->
-				instantiate<sensor_msgs::PointCloud2>();
-			auto label_msg = label_it_vec[lidar_idx]->
-				instantiate<sensor_msgs::PointCloud2>();
+			std::vector<pcl::PointCloud<PointLidarI>::Ptr> lidar_pd_raw_vec;
+			std::vector<pcl::PointCloud<PointLabel>::Ptr> label_pd_vec;
+			std::vector<std::vector<int> > indices_vec;
+			std::vector<std::deque<bool> > invalid_lidar_pt_idx_vec_vec;
+
+			for (auto lidar_submap_idx = lidar_idx - left_frame_num;
+				lidar_submap_idx <= lidar_idx + right_frame_num; lidar_submap_idx++) {
+				if (lidar_submap_idx < 0) continue;
+				if (lidar_submap_idx >= lidar_points_it_vec.size()) break;
+
+				auto lidar_pd_msg = lidar_points_it_vec[lidar_submap_idx]->
+					instantiate<sensor_msgs::PointCloud2>();
+				auto label_msg = label_it_vec[lidar_submap_idx]->
+					instantiate<sensor_msgs::PointCloud2>();
+
+				pcl::PointCloud<PointLidarI>::Ptr lidar_pd_raw(new pcl::PointCloud<PointLidarI>);
+				pcl::PointCloud<PointLabel>::Ptr label_pd(new pcl::PointCloud<PointLabel>);
+
+				pcl::fromROSMsg(*lidar_pd_msg, *lidar_pd_raw); 
+				pcl::fromROSMsg(*label_msg, *label_pd); 
+
+				CHECK(lidar_pd_raw->size() == label_pd->size()) 
+					<< "Lidar point size != Label size";
+
+				//do motion compensation
+				//the mapping (ordered): cloud_out.points[i] = cloud_in.points[indices[i]]
+				auto indices = horizon::mapping::LidarMotionCompensation::motionCompensation(
+						delta_odom_vec[lidar_idx], lidar_pd_raw, TIME_EACH_LIDAR);
+
+				CHECK(lidar_pd_raw->size() == indices.size()) 
+					<< "Lidar point size != Label size";
+				
+				std::deque<bool> invalid_lidar_pt_idx_vec(indices.size(), true);
+
+				//transform each lidar pd to the time at lidar_idx
+				auto lidar_idx_odom =  odom_vec[lidar_idx];
+				auto lidar_submap_idx_odom =  odom_vec[lidar_submap_idx];
+
+				Eigen::Matrix4d delta_odom = lidar_idx_odom.inverse() * lidar_submap_idx_odom;
+
+				for (auto p_idx = 0; p_idx < lidar_pd_raw->size(); p_idx++) {
+					auto temp = lidar_pd_raw->points[p_idx];
+					if (std::isnan(temp.x) || 
+						std::isnan(temp.y) || 
+						std::isnan(temp.z)) continue;
+
+					if (fabs(temp.x) < 2 && fabs(temp.y) < 2 && fabs(temp.z) < 2) {
+						invalid_lidar_pt_idx_vec[p_idx] = false;
+						continue;
+					}
+
+					Eigen::Vector4d vec(temp.x, temp.y, temp.z, 1);
+					Eigen::Vector4d rel = delta_odom * vec;
+					lidar_pd_raw->points[p_idx].x = rel(0);
+					lidar_pd_raw->points[p_idx].y = rel(1);
+					lidar_pd_raw->points[p_idx].z = rel(2);
+				}
+
+				lidar_pd_raw_vec.push_back(lidar_pd_raw);
+				label_pd_vec.push_back(label_pd);
+				indices_vec.push_back(indices);
+				invalid_lidar_pt_idx_vec_vec.push_back(invalid_lidar_pt_idx_vec);
+			}
 
 			auto cam_pd_msg = cam_points_it_vec[i]->
 				instantiate<sensor_msgs::PointCloud2>();
 
-			pcl::PointCloud<PointLidarI>::Ptr lidar_pd_raw(new pcl::PointCloud<PointLidarI>);
 			pcl::PointCloud<PointLidar>::Ptr lidar_pd(new pcl::PointCloud<PointLidar>);
-			pcl::PointCloud<PointLabel>::Ptr label_pd(new pcl::PointCloud<PointLabel>);
 			pcl::PointCloud<PointCamEx>::Ptr cam_pd_ex(new pcl::PointCloud<PointCamEx>);
 			pcl::PointCloud<PointCam>::Ptr cam_pd(new pcl::PointCloud<PointCam>);
 
-			pcl::fromROSMsg(*lidar_pd_msg, *lidar_pd_raw); 
-			pcl::fromROSMsg(*label_msg, *label_pd); 
 			//pcl::fromROSMsg(*cam_pd_msg, *cam_pd); 
 			pcl::fromROSMsg(*cam_pd_msg, *cam_pd_ex); 
 
@@ -423,14 +488,6 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 				}
 				cam_pd->resize(cnt);
 			}
-
-			CHECK(lidar_pd_raw->size() == label_pd->size()) 
-				<< "Lidar point size != Label size";
-
-			//do motion compensation
-			//the mapping (ordered): cloud_out.points[i] = cloud_in.points[indices[i]]
-			auto indices = horizon::mapping::LidarMotionCompensation::motionCompensation(
-					delta_odom_vec[lidar_idx], lidar_pd_raw, TIME_EACH_LIDAR);
 
 			//caculate lidar odom at the aligned cam time
 			double ratio = (lidar_stamp_vec[lidar_idx] - cam_stamp_vec[i]) / TIME_EACH_LIDAR;
@@ -468,11 +525,13 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 			}
 
 			//set label
-			{
-				for (auto p_idx = 0; p_idx < lidar_pd_raw->size(); p_idx++) {
-					auto temp = lidar_pd_raw->points[p_idx];
+			for (auto submap_idx = 0; submap_idx < lidar_pd_raw_vec.size(); submap_idx++) {
+				for (auto p_idx = 0; p_idx < lidar_pd_raw_vec[submap_idx]->size(); p_idx++) {
+					//skip invalid point
+					if (invalid_lidar_pt_idx_vec_vec[submap_idx][p_idx] == false) continue;
+					auto temp = lidar_pd_raw_vec[submap_idx]->points[p_idx];
 					//auto label = label_pd->points[p_idx];
-					auto label = label_pd->points[indices[p_idx]];
+					auto label = label_pd_vec[submap_idx]->points[indices_vec[submap_idx][p_idx]];
 
 					if (INVALID_LABEL == static_cast<unsigned char>(label.label)) continue;
 					if (fabs(temp.x) < 2 && fabs(temp.y) < 2 && fabs(temp.z) < 2) continue;
@@ -480,7 +539,7 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 					Eigen::Vector4d vec(temp.x, temp.y, temp.z, 1);
 					//vec = t_cam_lidar.block<3, 3>(0, 0) * vec + t_cam_lidar.block<3, 1>(0, 0);
 
-					auto rel = ex_cam_lidar * t_cam_lidar * vec;
+					Eigen::Vector4d rel = ex_cam_lidar * t_cam_lidar * vec;
 
 					//if (sqrt(pow(rel(0), 2) + pow(rel(1), 2) + pow(rel(2), 2)) > config.max_dis) continue;
 
@@ -633,7 +692,7 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 			" [" << std_vec[0] << ", " << std_vec[1] << ", " << std_vec[2] << "]" 
 			" [" << valid_size << "/" << mean_vec_vec.size() << "]"
 			" [" << config.cam_pt_cov << " " << config.max_dis << " "<< config.leaf_size 
-			<< " " << config.min_pts_each_voxel
+			<< " " << config.min_pts_each_voxel << " " << config.lidar_submap_frame_num
 			<< "]\n"; 
 
 		//output to cout
@@ -644,7 +703,7 @@ void cmp_cam_lidar_pd(Config &config, const Eigen::Matrix4d ex_cam_lidar) {
 			" [" << std_vec[0] << ", " << std_vec[1] << ", " << std_vec[2] << "]" 
 			" [" << valid_size << "/" << mean_vec_vec.size() << "]"
 			" [" << config.cam_pt_cov << " " << config.max_dis << " "<< config.leaf_size 
-			<< " " << config.min_pts_each_voxel
+			<< " " << config.min_pts_each_voxel << " " << config.lidar_submap_frame_num
 			<< "]\n"; 
 
 		bag.close();
