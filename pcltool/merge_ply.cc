@@ -13,9 +13,6 @@
 
 typedef pcl::PointXYZRGBL PointT;
 
-//DEFINE_string(pcldir,"","pcd file directory");
-//DEFINE_string(plyfilename,"","ply file name");
-//DEFINE_bool(format,false,"binary or ascii,true is binary");
 pcl::PointCloud<PointT>::Ptr cloudPtr(new pcl::PointCloud<PointT>());
 
 std::vector<std::string> load_dir_files(const char *dir)
@@ -42,7 +39,7 @@ std::vector<std::string> load_dir_files(const char *dir)
 void myLoadPCDFile(const std::string filenames,  pcl::PointCloud<PointT>::Ptr cloud)
 {
 
-	if(pcl::io::loadPCDFile(filenames, *cloud) == -1)
+	if(pcl::io::loadPLYFile(filenames, *cloud) == -1)
 	{
 		LOG(ERROR)<<"ERROR: cannot load pcd file\n";
 		exit(1);
@@ -78,16 +75,11 @@ int main (int argc, char** argv)
 	auto cnt=0;
 	while (cnt < pcl_files.size())
 	{
-		if (cnt > 100) break;
-		cloud->clear();
 		myLoadPCDFile(pcl_files[cnt],cloud);
 		cnt++;
 	}
 	// Convert to PLY and save
 	toPly(argv[2]);
 
-	//pcl::visualization::PCLVisualizer viewer("viewer");
-	//viewer.addPointCloud(cloudPtr, "cloud");
-  //viewer.spin();
 	return (0);
 }

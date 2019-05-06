@@ -20,3 +20,9 @@ target_link_libraries(pcd2asc ${LIBS})
 
 add_executable(transform_pcd transform_pcd.cpp)
 target_link_libraries(transform_pcd ${LIBS})
+
+add_executable(merge_ply merge_ply.cc)
+target_link_libraries(merge_ply ${LIBS})
+
+add_executable(ply2pcd ply2pcd.cpp)
+target_link_libraries(ply2pcd ${LIBS})

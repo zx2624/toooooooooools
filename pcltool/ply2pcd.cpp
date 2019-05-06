@@ -39,10 +39,11 @@ std::vector<std::string> load_dir_files(const char *dir)
     return files;
 }
 
-void myLoadPCDFile(const std::string filenames,  pcl::PointCloud<PointT>::Ptr cloud)
+void myLoadPLYFile(const std::string filenames,  pcl::PointCloud<PointT>::Ptr cloud)
 {
+	pcl::PLYReader reader;
 
-	if(pcl::io::loadPCDFile(filenames, *cloud) == -1)
+	if(reader.read(filenames, *cloud) == -1)
 	{
 		LOG(ERROR)<<"ERROR: cannot load pcd file\n";
 		exit(1);
@@ -53,16 +54,15 @@ void myLoadPCDFile(const std::string filenames,  pcl::PointCloud<PointT>::Ptr cl
 }
 
 
-void toPly (char *argv)
+void toPCD (char *argv)
 {
-	pcl::PLYWriter writer;
-	writer.write(argv, *cloudPtr, true);
+	pcl::io::savePCDFileASCII(argv, *cloudPtr);
 }
 /* ---[ */
 
 int main (int argc, char** argv)
 {
-	FLAGS_logtostderr=1;
+	FLAGS_logtostderr=0;
 	FLAGS_colorlogtostderr=1;
 	google::InitGoogleLogging(argv[0]);
 
@@ -78,13 +78,12 @@ int main (int argc, char** argv)
 	auto cnt=0;
 	while (cnt < pcl_files.size())
 	{
-		if (cnt > 100) break;
-		cloud->clear();
-		myLoadPCDFile(pcl_files[cnt],cloud);
+		//cloud->clear();
+		myLoadPLYFile(pcl_files[cnt],cloud);
 		cnt++;
 	}
 	// Convert to PLY and save
-	toPly(argv[2]);
+	toPCD(argv[2]);
 
 	//pcl::visualization::PCLVisualizer viewer("viewer");
 	//viewer.addPointCloud(cloudPtr, "cloud");
