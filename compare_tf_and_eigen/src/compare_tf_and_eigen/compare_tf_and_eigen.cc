@@ -4,8 +4,15 @@
 
 #include <Eigen/Eigen>
 
-int main(int argc, char** argv) {
+template<typename T> 
+void mat2RPY(const Eigen::Matrix<T, 3, 3>& m, T& roll, T& pitch, T& yaw) {
+	roll = atan2(m(2,1), m(2,2));
+	pitch = atan2(-m(2,0), sqrt(m(2,1) * m(2,1) + m(2,2) * m(2,2)));
+	yaw = atan2(m(1,0), m(0,0));
+}
 
+int main(int argc, char** argv) {
+#if 0
 	Eigen::Quaterniond quat_zero(1, 0, 0, 0);
 
 	Eigen::Matrix3d mat = Eigen::AngleAxisd(1.57, Eigen::Vector3d::UnitZ()) *
@@ -25,6 +32,124 @@ int main(int argc, char** argv) {
 	)).getRPY(roll, pitch, yaw);
 
 	std::cout << "RPY: " << roll << " " << pitch << " " << yaw << std::endl;
+
+	std::cout << "--------------------------------------------------------\n";
+#endif
+	Eigen::Matrix3d mat = Eigen::AngleAxisd(3.133477925482075, Eigen::Vector3d::UnitZ()) *
+												Eigen::AngleAxisd(-3.090182881778926, Eigen::Vector3d::UnitY()) *
+												Eigen::AngleAxisd(-1.624814646183607, Eigen::Vector3d::UnitX()).matrix();
+
+	std::cout << "Mat:\n" << mat << std::endl;
+	double r = 0, p = 0, y = 0;
+	mat2RPY(mat, r, p, y);
+	std::cout << "RPY: " << r << " " << p << " " << y << std::endl;
+
+	auto rpy = mat.eulerAngles(0, 1, 2);
+	std::cout << "\n rpy from eigen matrix: " << rpy(0) << " " << rpy(1) 
+		<< " " << rpy(2) << std::endl;
+
+	Eigen::Quaterniond quat(0.999632, 0.0119762, -0.0239928, 0.00410734);
+	//Eigen::Quaterniond quat;
+	//quat = mat;
+
+	tf::Quaternion tf_quat(quat.x(), quat.y(), quat.z(), quat.w());
+	tf::Matrix3x3 tf_mat(tf_quat);
+	tf_mat.getRPY(r, p, y);
+	std::cout << "RPY From tf: " << r << " " << p << " " << y << std::endl;
+
+	Eigen::Matrix3d temp_mat = Eigen::Matrix3d::Identity();
+	temp_mat = quat;
+	mat2RPY(temp_mat, r, p, y);
+	std::cout << "RPY From mat2RPY: " << r << " " << p << " " << y << std::endl;
+
+	Eigen::Matrix3d mat_inv = mat.transpose();
+
+	mat2RPY(mat_inv, r, p, y);
+	std::cout << "Rotation inverse: " << r << " " << p << " " << y << std::endl;
+
+	Eigen::Matrix<double, 3, 1> translation;
+	translation << -0.1249915815878393, 
+							-0.3548267231758856,
+							-0.3435796582574143;
+
+	translation = - mat.transpose() * translation;
+	std::cout << "translation:\n" << translation << std::endl;
+
+	Eigen::Matrix<double, 3, 1> test_norm;
+	test_norm << 0, 0, 0;
+	std::cout << test_norm.norm() << std::endl;
+
+	///------------------Test std::vector<Eigen::Quaterniond>'s address exception
+	//std::vector<Eigen::Quaterniond, Eigen::aligned_allocator<Eigen::Quaterniond>> vec_qua;
+	std::vector<Eigen::Quaternion<double>> vec_qua(10);
+	std::vector<Eigen::Quaternion<double>> vec_qua_temp;
+	//std::list<Eigen::Quaternion<double>> vec_qua;
+	for (auto i = 0; i < 10; i++) {
+		Eigen::Quaterniond qua(1, 0, 0 ,0);
+		vec_qua_temp.push_back(qua);
+
+		vec_qua = vec_qua_temp;
+
+		std::cout << "vec_qua size: " << vec_qua.size() << std::endl;
+
+		//for (auto j = 0; j < vec_qua.size() ; j++) {
+		for (auto &q:vec_qua) {
+			std::cout << "Add " << q.coeffs().data() << std::endl;
+		}
+		std::cout << "-----------------\n";
+	}
+
+	bool bool_array[10];
+	memset(bool_array, true, 10 * sizeof(bool));
+	for (auto i = 0; i < 10; i++) {
+		std::cout << bool_array[i] << std::endl;
+	}
+
+	///Test precision problem
+	Eigen::Quaterniond Qwc(0.24538995325565338, -0.296612024307251,
+		-0.6294548511505127, 0.67497533559799194);
+
+	Qwc.normalize();
+
+	Eigen::Matrix<double, 3, 1> twc;
+	//twc << 459842.34375 - 459842, 4406019.5 - 4406019, 28.744709014892578;
+	twc << 459842.34375, 4406019.5, 28.744709014892578;
+
+	Eigen::Matrix<double, 3, 3> Rcw = Qwc.conjugate().toRotationMatrix();
+	Eigen::Matrix<double, 3, 1> tcw = - (Rcw * twc);
+
+	Eigen::Quaterniond Qcw = Qwc.conjugate();
+
+	Qcw.normalize();
+
+	Eigen::Matrix<double, 3, 1> tcw2 = -(Qcw * twc);
+
+	std::cout << std::fixed << std::setprecision(15) 
+		<< "tcw:\n" << tcw << std::endl;
+
+	std::cout << std::fixed << std::setprecision(15) 
+		<< "tcw2:\n" << tcw2 << std::endl;
+
+	Eigen::Matrix<double,3 , 3> Rwc = Rcw.inverse();
+	twc = - (Rwc * tcw);
+
+	std::cout << "Rwc:\n" << Rwc << std::endl;
+
+	Qwc = Qcw.conjugate();
+
+	Qwc.normalize();
+
+	std::cout << "Qwc:\n" << Qwc.toRotationMatrix() << std::endl;
+
+	Eigen::Matrix<double, 3, 1> twc2 = -(Qwc * tcw2);
+
+	std::cout << std::fixed << std::setprecision(15) 
+		<< "twc:\n" << twc << std::endl;
+	std::cout << std::fixed << std::setprecision(15) 
+		<< "twc2:\n" << twc2 << std::endl;
+	
+
+
 
 #if 0
 	double roll = 0;

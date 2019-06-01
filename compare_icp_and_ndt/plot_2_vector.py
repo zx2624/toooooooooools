@@ -22,8 +22,23 @@ with open(sys.argv[1]) as f:
 cos_good = np.cos(yaw_good)
 sin_good = np.sin(yaw_good)
 
+x_2 = []
+y_2 = []
+yaw_2 = []
+
+with open(sys.argv[2]) as f:
+	for l in f:
+		line = l.split()
+		x_2.append(float(line[1]))
+		y_2.append(float(line[2]))
+		yaw_2.append(float(line[6]))
+
+cos_2 = np.cos(yaw_2)
+sin_2 = np.sin(yaw_2)
+
 # plt.quiver(x_s, y_s, cos_s, sin_s, units='width', color='r', label="odom")
-plt.quiver(x_good, y_good, cos_good, sin_good, scale=4, scale_units='inches', color='r', label="icp")
+plt.quiver(x_good, y_good, cos_good, sin_good, scale=4, scale_units='inches', color='r', label="all")
+plt.quiver(x_2, y_2, cos_2, sin_2, scale=4, scale_units='inches', color='g', label="label")
 
 plt.axis('equal')
 plt.legend()

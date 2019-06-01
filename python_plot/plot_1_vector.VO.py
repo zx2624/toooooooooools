@@ -29,9 +29,9 @@ with open(sys.argv[1]) as f:
 		cov_pitch = float(line[11])
 		cov_yaw = float(line[12])
 
-		x = float(line[1])
-		y = float(line[2])
-		yaw = float(line[6])
+		x = float(line[2])
+		y = float(line[3])
+		yaw = float(line[5])
 
 		if(flag) :
 			x_init = x
@@ -41,7 +41,7 @@ with open(sys.argv[1]) as f:
 		x -= x_init
 		y -= y_init
 #if(cov_x > 3 or cov_y > 3 or cov_z > 3 or cov_yaw > 3 or cov_roll > 3 or cov_pitch > 3) :
-		if(cov_x > 20 or cov_y > 20 or cov_z > 20) :
+		if(cov_x > 20 or cov_y > 20 or cov_z > 10000000) :
 		  x_bad.append(x)
 		  y_bad.append(y)
 		  yaw_bad.append(yaw)

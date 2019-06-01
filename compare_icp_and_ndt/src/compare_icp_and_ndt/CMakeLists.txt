@@ -3,7 +3,10 @@ project(compare_icp_and_ndt)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
-SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -DNDEBUG -DVIEWER ${CMAKE_CXX_FLAGS}")
+SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 -DIntensity_instead_Label ${CMAKE_CXX_FLAGS}")
+#SET(CMAKE_CXX_FLAGS "-std=c++11 -O3 -DVIEWER -DIntensity_instead_Label ${CMAKE_CXX_FLAGS}")
+#SET(CMAKE_CXX_FLAGS "-std=c++11 -g -DVIEWER -DIntensity_instead_Label ${CMAKE_CXX_FLAGS}")
+#SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -DNDEBUG -DVIEWER ${CMAKE_CXX_FLAGS}")
 #SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -DNDEBUG -DUSE_GICP ${CMAKE_CXX_FLAGS}")
 #SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall ${CMAKE_CXX_FLAGS}")
 #SET(CMAKE_CXX_FLAGS "-std=c++11 -O2 -g -Wall -DCUDA_NDT ${CMAKE_CXX_FLAGS}")
@@ -18,7 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
 		ndt_gpu
 		velodyne_pointcloud
 		pcl_conversions
-		lidar3d_loc
+#lidar3d_loc
 		)
 
 ## System dependencies are found with CMake's conventions
@@ -121,7 +124,7 @@ catkin_package(
 	ndt_gpu
 	velodyne_cloud
 	pcl_conversions
-	lidar3d_loc
+#lidar3d_loc
 #  DEPENDS system_lib
 )
 
@@ -166,6 +169,7 @@ include_directories(
 ## Specify libraries to link a library or executable target against
  target_link_libraries(${PROJECT_NAME}_node
    ${catkin_LIBRARIES} ${PCL_LIBRARIES} 
+	 yaml-cpp
  )
 
 #############
