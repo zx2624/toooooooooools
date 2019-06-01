@@ -9,14 +9,14 @@ sudo pip install transforms3d selenium matplotlib gmplot
 ##### Read a bag and save the odom's trajectory in the bag's dir.
 ```
 source devel/setup.bash
-rosrun read_bag_plot_in_google_map.py -f /media/test.bag /sensor/novatel/odom
+rosrun read_bag_odom read_bag_plot_in_google_map.py -f /media/test.bag /sensor/novatel/odom
 ```
 
 ##### Read all bag in the dir and save the odom's trajectory in the bag's dir.
 
 ```
 source devel/setup.bash
-rosrun read_bag_plot_in_google_map.py -d /media/test /sensor/novatel/odom
+rosrun read_bag_odom read_bag_plot_in_google_map.py -d /media/test /sensor/novatel/odom
 ```
 
 #### Read two kinds of odom in world coordinates , plot their XYZ and RPY comparison figure, then Save them in the dir.
@@ -25,11 +25,11 @@ rosrun read_bag_plot_in_google_map.py -d /media/test /sensor/novatel/odom
 
 ```
 source devel/setup.bash
-rosrun read_bag_plot_in_google_map.py -f /media/test.bag  /sensor/novatel/odom  /pose_optimize/velodyne/odom 0 0 0 0 0 0
+rosrun read_bag_odom read_odom_and_compare.py -f /media/test.bag  /sensor/novatel/odom  /pose_optimize/velodyne/odom 0 0 0 0 0 0
 ```
 ##### Read all bag in the dir and save the figure in the bag's dir.
 
 ```
 source devel/setup.bash
-rosrun read_bag_plot_in_google_map.py -d /media/test /sensor/novatel/odom /pose_optimize/velodyne/odom 0 0 0 0 0 0
+rosrun read_bag_odom read_odom_and_compare.py -d /media/test /sensor/novatel/odom /pose_optimize/velodyne/odom 0 0 0 0 0 0
 ```
