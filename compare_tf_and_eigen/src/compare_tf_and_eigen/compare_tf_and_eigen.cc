@@ -115,12 +115,12 @@ int main(int argc, char** argv) {
 	//twc << 459842.34375 - 459842, 4406019.5 - 4406019, 28.744709014892578;
 	twc << 459842.34375, 4406019.5, 28.744709014892578;
 
-	Eigen::Matrix<double, 3, 3> Rcw = Qwc.conjugate().toRotationMatrix();
-	Eigen::Matrix<double, 3, 1> tcw = - (Rcw * twc);
-
 	Eigen::Quaterniond Qcw = Qwc.conjugate();
 
-	Qcw.normalize();
+	//Qcw.normalize();
+
+	Eigen::Matrix<double, 3, 3> Rcw = Qcw.toRotationMatrix();
+	Eigen::Matrix<double, 3, 1> tcw = - (Rcw * twc);
 
 	Eigen::Matrix<double, 3, 1> tcw2 = -(Qcw * twc);
 
@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
 
 	Qwc = Qcw.conjugate();
 
-	Qwc.normalize();
+	//Qwc.normalize();
 
 	std::cout << "Qwc:\n" << Qwc.toRotationMatrix() << std::endl;
 
@@ -148,8 +148,31 @@ int main(int argc, char** argv) {
 	std::cout << std::fixed << std::setprecision(15) 
 		<< "twc2:\n" << twc2 << std::endl;
 	
+///#########################################################
+
+	Eigen::Quaterniond qqq(0.7343118, 0.02798252, -0.00137936, 0.67823392);
+
+	Eigen::Matrix<double, 3, 3> rot_qqq;
+	rot_qqq = qqq;
+	std::cout << "rot_qqq:\n" << rot_qqq << std::endl;
 
 
+	Eigen::Matrix3d mat1;
+	mat1 << 0, 0, 1,
+				-1, 0, 0,
+				0, -1, 0;
+
+	double r1 = 0, p1 = 0, y1 = 0;
+	mat2RPY(mat1, r1, p1, y1);
+	std::cout << "\nRPY: " << r1 << " " << p1 << " " << y1 << std::endl;
+	std::cout << "mat1:\n" << mat1 << std::endl;
+
+	Eigen::Matrix4d tf = Eigen::Matrix4d::Identity();
+	tf << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16;
+	std::cout << "tf:\n" << tf(3, 0) <<std::endl;
+
+	int i = -1 / 2;
+	std::cout << i << std::endl;
 
 #if 0
 	double roll = 0;
