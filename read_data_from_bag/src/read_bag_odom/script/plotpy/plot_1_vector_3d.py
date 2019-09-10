@@ -5,13 +5,13 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 
 ls = [l.split() for l in open(sys.argv[1])]
-x_s = map(float, [l[2] for l in ls])
-y_s = map(float, [l[3] for l in ls])
-z_s =  map(float, [l[4] for l in ls])
+x_s = map(float, [l[1] for l in ls])
+y_s = map(float, [l[2] for l in ls])
+z_s =  map(float, [l[3] for l in ls])
 
-roll_s = map(float, [l[5] for l in ls])
-pitch_s = map(float, [l[6] for l in ls])
-yaw_s = map(float, [l[7] for l in ls])
+roll_s = map(float, [l[4] for l in ls])
+pitch_s = map(float, [l[5] for l in ls])
+yaw_s = map(float, [l[6] for l in ls])
 
 
 u = np.cos(yaw_s) * np.cos(pitch_s) 

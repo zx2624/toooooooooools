@@ -7,7 +7,7 @@ ls = [l.split() for l in open(sys.argv[1])]
 x_s = map(float, [l[2] for l in ls])
 y_s = map(float, [l[3] for l in ls])
 yaw_s = map(float, [l[5] for l in ls])
-
+print('=======')
 ls = [l.split() for l in open(sys.argv[2])]
 x_s_2 = map(float, [l[2] for l in ls])
 y_s_2 = map(float, [l[3] for l in ls])
