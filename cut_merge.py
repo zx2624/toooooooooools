@@ -7,8 +7,8 @@
 #(4) sudo pip install gmplot
 
 from fnmatch import fnmatchcase
-import rosbag
 import sys
+import rosbag
 import getopt
 import glob
 import os
