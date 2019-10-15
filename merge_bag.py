@@ -7,7 +7,7 @@ from fnmatch import fnmatchcase
 from rosbag import Bag
 
 def main():
-
+    # print('===========================')
     parser = argparse.ArgumentParser(description='Merge one or more bag files with the possibilities of filtering topics.')
     parser.add_argument('outputbag',
                         help='output bag file with topics merged')
@@ -17,16 +17,17 @@ def main():
                         help='verbose output')
     parser.add_argument('-t', '--topics', default="*",
                         help='string interpreted as a list of topics (wildcards \'*\' and \'?\' allowed) to include in the merged bag file')
-    parser.add_argument('start_stamp', default=0.0, type=float, 
-            help='start stamp')
-    parser.add_argument('end_stamp', default=0.0,type=float, 
-            help='end stamp')
-
+    # parser.add_argument('start_stamp', default=0.0, type=float, 
+    #         help='start stamp')
+    # parser.add_argument('end_stamp', default=sys.float_info.max,type=float, 
+    #         help='end stamp')
+    # start_stamp = 0.0
+    # end_stamp = sys.float_info.max
     args = parser.parse_args()
 
     topics = args.topics.split(' ')
-    print("Start stamp: {}".format(args.start_stamp))
-    print("End stamp: {}".format(args.end_stamp))
+    # print("Start stamp: {}".format(args.start_stamp))
+    # print("End stamp: {}".format(args.end_stamp))
 
     total_included_count = 0
     total_skipped_count = 0
@@ -45,11 +46,11 @@ def main():
                 print("> Reading bag file: " + ifile)
             with Bag(ifile, 'r') as ib:
                 for topic, msg, t in ib:
-                    if t.to_sec() < args.start_stamp :
-                        continue
-                    elif t.to_sec() > args.end_stamp :
-                        break
-                    print("bag: {}  msg time: {}".format(ifile, t.to_sec()))
+                    # if t.to_sec() < args.start_stamp :
+                    #     continue
+                    # elif t.to_sec() > args.end_stamp :
+                    #     break
+                    # print("bag: {}  msg time: {}".format(ifile, t.to_sec()))
                     if any(fnmatchcase(topic, pattern) for pattern in topics):
                         if not topic in matchedtopics:
                             matchedtopics.append(topic)
